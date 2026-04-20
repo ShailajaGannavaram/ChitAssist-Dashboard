@@ -92,26 +92,35 @@ const SidebarContent = props => {
     <React.Fragment>
       <SimpleBar style={{ maxHeight: "100%" }} ref={ref}>
         <div id="sidebar-menu">
+          {/* Ants Digital branding strip at top of sidebar */}
+          <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid #1a2035", marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <img src="https://antsdigital.in/assets/images/antslogo.png" alt="Ants Digital" style={{ height: 28 }}
+                onError={(e) => e.target.style.display = "none"} />
+            </div>
+            <div style={{ fontSize: 10, color: "#445566", marginTop: 4, letterSpacing: 1, textTransform: "uppercase" }}>Powered by Ants Digital</div>
+          </div>
+
           <ul className="metismenu list-unstyled" id="side-menu">
             {isSuperuser ? (
               <>
-                <li className="menu-title">Admin Panel</li>
+                <li className="menu-title" style={{ color: "#008ed3", fontSize: 10, letterSpacing: 1 }}>ADMIN PANEL</li>
                 <li><Link to="/admin-bots" className="waves-effect"><i className="mdi mdi-view-grid-outline"></i><span>All Bots</span></Link></li>
                 <li><Link to="/create-bot" className="waves-effect"><i className="mdi mdi-robot-outline"></i><span>Create Bot</span></Link></li>
                 <li><Link to="/users" className="waves-effect"><i className="mdi mdi-account-group"></i><span>User Management</span></Link></li>
               </>
             ) : (
               <>
-                <li className="menu-title">Main</li>
+                <li className="menu-title" style={{ color: "#008ed3", fontSize: 10, letterSpacing: 1 }}>MAIN</li>
                 <li><Link to="/dashboard" className="waves-effect"><i className="mdi mdi-view-dashboard"></i><span>Dashboard</span></Link></li>
-                <li className="menu-title">Bot Data</li>
+                <li className="menu-title" style={{ color: "#008ed3", fontSize: 10, letterSpacing: 1 }}>BOT DATA</li>
                 <li><Link to="/leads" className="waves-effect"><i className="mdi mdi-account-check"></i><span>Leads</span></Link></li>
                 <li><Link to="/conversations" className="waves-effect"><i className="mdi mdi-chat-processing-outline"></i><span>Conversations</span></Link></li>
-                <li className="menu-title">Settings</li>
+                <li className="menu-title" style={{ color: "#008ed3", fontSize: 10, letterSpacing: 1 }}>SETTINGS</li>
                 <li><Link to="/bot-config" className="waves-effect"><i className="mdi mdi-cog-outline"></i><span>Bot Configuration</span></Link></li>
               </>
             )}
-            <li className="menu-title">Account</li>
+            <li className="menu-title" style={{ color: "#008ed3", fontSize: 10, letterSpacing: 1 }}>ACCOUNT</li>
             <li><Link to="/logout" className="waves-effect"><i className="mdi mdi-logout"></i><span>Logout</span></Link></li>
           </ul>
         </div>

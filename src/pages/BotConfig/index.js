@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useSelector, useDispatch, connect } from "react-redux";
 import { Row, Col, Card, CardBody, Badge, Nav, NavItem, NavLink, TabContent, TabPane, Input, Label, Alert } from "reactstrap";
 import { setBreadcrumbItems, fetchBotConfig, saveBotConfig } from "../../store/actions";
@@ -7,34 +7,48 @@ const getAuthUser = () => {
   try { return JSON.parse(localStorage.getItem("authUser") || "{}"); } catch { return {}; }
 };
 
-const BotConfig = (props) => {
+const BotConfig = ({ setBreadcrumbItems, botId: propBotId }) => {
   const dispatch = useDispatch();
   const user = getAuthUser();
+  const botId = propBotId || user.bot_id || "margadarsi";
   const [activeTab, setActiveTab] = useState("1");
-  const [form, setForm] = useState({});
+  const [form, setForm] = useState(null);
   const [dirty, setDirty] = useState(false);
-  const [botId, setBotId] = useState(props.botId || user.bot_id || "margadarsi");
   document.title = "Bot Configuration | ChitAssist Dashboard";
 
   useEffect(() => {
-    props.setBreadcrumbItems("Bot Configuration", [{ title: "Dashboard", link: "/dashboard" }, { title: "Bot Config", link: "#" }]);
+    setBreadcrumbItems("Bot Configuration", [{ title: "Dashboard", link: "/dashboard" }, { title: "Bot Config", link: "#" }]);
     dispatch(fetchBotConfig(botId));
-  }, [botId]);
+  }, [botId]); // eslint-disable-line
 
   const { config, loading, saving, saveSuccess, saveError } = useSelector((s) => s.BotConfig);
 
   useEffect(() => {
-    if (config) setForm(config);
-  }, [config]);
+    if (config && !dirty) setForm({ ...config });
+  }, [config]); // eslint-disable-line
 
-  const set = (field, value) => { setForm((f) => ({ ...f, [field]: value })); setDirty(true); };
+  // Stable field setter — does NOT cause cursor jump because we use functional update
+  const set = useCallback((field, value) => {
+    setForm((f) => ({ ...f, [field]: value }));
+    setDirty(true);
+  }, []);
 
-  const handleSave = () => { dispatch(saveBotConfig({ ...form, bot_id: botId })); setDirty(false); };
+  const handleSave = () => {
+    dispatch(saveBotConfig({ ...form, bot_id: botId }));
+    setDirty(false);
+  };
 
-  const F = ({ label, field, type = "text", help }) => (
+  // Controlled input component — key is field name so React keeps stable DOM node
+  const F = ({ label, field, type = "text", help, placeholder }) => (
     <div className="mb-3">
       <Label className="form-label fw-medium">{label}</Label>
-      <Input type={type} value={form[field] ?? ""} onChange={(e) => set(field, e.target.value)} />
+      <Input
+        key={field}
+        type={type}
+        value={form?.[field] ?? ""}
+        placeholder={placeholder}
+        onChange={(e) => set(field, e.target.value)}
+      />
       {help && <small className="text-muted">{help}</small>}
     </div>
   );
@@ -43,13 +57,15 @@ const BotConfig = (props) => {
     <div className="d-flex align-items-center justify-content-between mb-3 p-3" style={{ background: "#f8f9fa", borderRadius: 8 }}>
       <span className="fw-medium">{label}</span>
       <div className="form-check form-switch mb-0">
-        <input className="form-check-input" type="checkbox" checked={!!form[field]} onChange={(e) => set(field, e.target.checked)} style={{ width: 40, height: 20, cursor: "pointer" }} />
+        <input className="form-check-input" type="checkbox"
+          checked={!!form?.[field]}
+          onChange={(e) => set(field, e.target.checked)}
+          style={{ width: 40, height: 20, cursor: "pointer" }} />
       </div>
     </div>
   );
 
-  if (loading) return <div className="text-center py-5"><div className="spinner-border text-primary" /></div>;
-  if (!config) return <div className="text-center py-5 text-muted">Could not load bot configuration.</div>;
+  if (loading || !form) return <div className="text-center py-5"><div className="spinner-border text-primary" /></div>;
 
   const flowSteps = form.flow_steps || [];
   const quickSuggestions = form.quick_suggestions || [];
@@ -64,8 +80,8 @@ const BotConfig = (props) => {
               <div className="d-flex align-items-center gap-4">
                 {config.logo_url && <img src={config.logo_url} alt="" style={{ height: 48, objectFit: "contain" }} onError={(e) => e.target.style.display = "none"} />}
                 <div>
-                  <h4 className="mb-1">{config.bot_name}</h4>
-                  <p className="text-muted mb-0">{config.company_name} — <Badge color="secondary">{config.bot_id}</Badge></p>
+                  <h4 className="mb-1">{form.bot_name}</h4>
+                  <p className="text-muted mb-0">{form.company_name} — <Badge color="secondary">{botId}</Badge></p>
                 </div>
                 <div className="ms-auto d-flex gap-2 align-items-center">
                   {dirty && <span className="text-warning" style={{ fontSize: 13 }}><i className="mdi mdi-circle-medium"></i> Unsaved changes</span>}
@@ -149,19 +165,12 @@ const BotConfig = (props) => {
                   </Row>
                 </TabPane>
 
-                {/* FLOW STEPS - fully editable */}
                 <TabPane tabId="4">
                   <div className="d-flex justify-content-between align-items-center mb-3">
-                    <div>
-                      <h6 className="mb-1">Conversation Flow Steps</h6>
-                      <p className="text-muted mb-0" style={{ fontSize: 13 }}>Questions the bot asks users in order. Edit question text or add new steps.</p>
-                    </div>
+                    <div><h6 className="mb-1">Conversation Flow Steps</h6><p className="text-muted mb-0" style={{ fontSize: 13 }}>Questions the bot asks users in order.</p></div>
                     <button className="btn btn-sm btn-success" onClick={() => {
-                      const newStep = { order: flowSteps.length + 1, question: "New question", field_name: "new_field", field_type: "text", is_required: false, options: [] };
-                      set("flow_steps", [...flowSteps, newStep]);
-                    }}>
-                      <i className="mdi mdi-plus me-1"></i>Add Step
-                    </button>
+                      set("flow_steps", [...flowSteps, { order: flowSteps.length + 1, question: "New question", field_name: "new_field", field_type: "text", is_required: false, options: [] }]);
+                    }}><i className="mdi mdi-plus me-1"></i>Add Step</button>
                   </div>
                   {flowSteps.length === 0 ? (
                     <div className="text-center text-muted py-5"><i className="mdi mdi-format-list-numbered font-size-36 d-block mb-2"></i>No flow steps yet. Click Add Step.</div>
@@ -169,31 +178,25 @@ const BotConfig = (props) => {
                     <div key={i} style={{ border: "1px solid #e9ecef", borderRadius: 10, padding: "14px 18px", marginBottom: 10 }}>
                       <Row className="align-items-center">
                         <Col xs="auto">
-                          <div style={{ width: 34, height: 34, borderRadius: "50%", background: form.primary_color || "#556ee6", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
-                            {step.order}
-                          </div>
+                          <div style={{ width: 34, height: 34, borderRadius: "50%", background: form.primary_color || "#556ee6", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{step.order}</div>
                         </Col>
                         <Col>
                           <Input value={step.question} placeholder="Question text" className="mb-2"
                             onChange={(e) => { const s = [...flowSteps]; s[i] = { ...s[i], question: e.target.value }; set("flow_steps", s); }} />
                           <Row>
-                            <Col xl={4}>
-                              <Input value={step.field_name} placeholder="field_name"
-                                onChange={(e) => { const s = [...flowSteps]; s[i] = { ...s[i], field_name: e.target.value }; set("flow_steps", s); }} />
-                            </Col>
-                            <Col xl={4}>
-                              <Input type="select" value={step.field_type}
-                                onChange={(e) => { const s = [...flowSteps]; s[i] = { ...s[i], field_type: e.target.value }; set("flow_steps", s); }}>
-                                {Object.entries(FIELD_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                              </Input>
-                            </Col>
+                            <Col xl={4}><Input value={step.field_name} placeholder="field_name"
+                              onChange={(e) => { const s = [...flowSteps]; s[i] = { ...s[i], field_name: e.target.value }; set("flow_steps", s); }} /></Col>
+                            <Col xl={4}><Input type="select" value={step.field_type}
+                              onChange={(e) => { const s = [...flowSteps]; s[i] = { ...s[i], field_type: e.target.value }; set("flow_steps", s); }}>
+                              {Object.entries(FIELD_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                            </Input></Col>
                             <Col xl={4}>
                               <div className="d-flex align-items-center gap-2">
-                                <Input type="checkbox" checked={!!step.is_required}
+                                <input type="checkbox" checked={!!step.is_required}
                                   onChange={(e) => { const s = [...flowSteps]; s[i] = { ...s[i], is_required: e.target.checked }; set("flow_steps", s); }} />
                                 <small>Required</small>
                                 <button className="btn btn-sm btn-outline-danger ms-auto"
-                                  onClick={() => { const s = flowSteps.filter((_, j) => j !== i).map((st, j) => ({ ...st, order: j + 1 })); set("flow_steps", s); }}>
+                                  onClick={() => set("flow_steps", flowSteps.filter((_, j) => j !== i).map((st, j) => ({ ...st, order: j + 1 })))}>
                                   <i className="mdi mdi-delete"></i>
                                 </button>
                               </div>
@@ -202,7 +205,7 @@ const BotConfig = (props) => {
                           {(step.field_type === "options" || step.field_type === "multi_options") && (
                             <div className="mt-2">
                               <small className="text-muted">Options (comma separated):</small>
-                              <Input value={(step.options || []).join(", ")} placeholder="Option 1, Option 2, Option 3"
+                              <Input value={(step.options || []).join(", ")} placeholder="Option 1, Option 2"
                                 onChange={(e) => { const s = [...flowSteps]; s[i] = { ...s[i], options: e.target.value.split(",").map(o => o.trim()).filter(Boolean) }; set("flow_steps", s); }} />
                             </div>
                           )}
@@ -215,18 +218,11 @@ const BotConfig = (props) => {
                   </div>
                 </TabPane>
 
-                {/* QUICK SUGGESTIONS - fully editable */}
                 <TabPane tabId="5">
                   <div className="d-flex justify-content-between align-items-center mb-3">
-                    <div>
-                      <h6 className="mb-1">Quick Suggestions</h6>
-                      <p className="text-muted mb-0" style={{ fontSize: 13 }}>Buttons shown to users at the start of the chat.</p>
-                    </div>
-                    <button className="btn btn-sm btn-success" onClick={() => {
-                      const newS = { order: quickSuggestions.length + 1, icon: "💬", text: "New suggestion" };
-                      set("quick_suggestions", [...quickSuggestions, newS]);
-                    }}>
-                      <i className="mdi mdi-plus me-1"></i>Add Suggestion
+                    <div><h6 className="mb-1">Quick Suggestions</h6><p className="text-muted mb-0" style={{ fontSize: 13 }}>Buttons shown to users at the start of the chat.</p></div>
+                    <button className="btn btn-sm btn-success" onClick={() => set("quick_suggestions", [...quickSuggestions, { order: quickSuggestions.length + 1, icon: "💬", text: "New suggestion" }])}>
+                      <i className="mdi mdi-plus me-1"></i>Add
                     </button>
                   </div>
                   {quickSuggestions.length === 0 ? (
@@ -238,7 +234,7 @@ const BotConfig = (props) => {
                       <Input value={s.text} placeholder="Button text" style={{ flex: 1 }}
                         onChange={(e) => { const arr = [...quickSuggestions]; arr[i] = { ...arr[i], text: e.target.value }; set("quick_suggestions", arr); }} />
                       <button className="btn btn-sm btn-outline-danger"
-                        onClick={() => { const arr = quickSuggestions.filter((_, j) => j !== i).map((st, j) => ({ ...st, order: j + 1 })); set("quick_suggestions", arr); }}>
+                        onClick={() => set("quick_suggestions", quickSuggestions.filter((_, j) => j !== i).map((st, j) => ({ ...st, order: j + 1 })))}>
                         <i className="mdi mdi-delete"></i>
                       </button>
                     </div>

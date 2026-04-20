@@ -1,67 +1,42 @@
 import React, { useState } from "react"
 import PropTypes from 'prop-types'
-import {
-  Dropdown,
-  DropdownToggle,
-  DropdownMenu,
-  DropdownItem,
-} from "reactstrap"
-
-//i18n
+import { Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from "reactstrap"
 import { withTranslation } from "react-i18next"
-// Redux
 import { connect } from "react-redux"
-import {  Link } from "react-router-dom";
+import { Link } from "react-router-dom"
 import withRouter from "components/Common/withRouter"
 
-// users
-import user1 from "../../../assets/images/users/user-1.jpg"
+const getAuthUser = () => {
+  try { return JSON.parse(localStorage.getItem("authUser") || "{}"); } catch { return {}; }
+};
 
 const ProfileMenu = props => {
-  // Declare a new state variable, which we'll call "menu"
   const [menu, setMenu] = useState(false)
-
+  const user = getAuthUser()
 
   return (
     <React.Fragment>
-      <Dropdown
-        isOpen={menu}
-        toggle={() => setMenu(!menu)}
-        className="d-inline-block"
-      >
-        <DropdownToggle
-          className="btn header-item waves-effect"
-          id="page-header-user-dropdown"
-          tag="button"
-        >
-          <img
-            className="rounded-circle header-profile-user"
-            src={user1}
-            alt="Header Avatar"
-          />
+      <Dropdown isOpen={menu} toggle={() => setMenu(!menu)} className="d-inline-block">
+        <DropdownToggle className="btn header-item waves-effect" tag="button"
+          style={{ color: "#ccd6e0", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#008ed3", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#fff", fontSize: 14 }}>
+            {(user.email || "U")[0].toUpperCase()}
+          </div>
+          <div className="d-none d-xl-flex flex-column align-items-start">
+            <span style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2 }}>{user.username || user.email?.split("@")[0] || "User"}</span>
+            <span style={{ fontSize: 11, color: "#008ed3", lineHeight: 1.2 }}>{user.is_superuser ? "Superadmin" : "Client"}</span>
+          </div>
+          <i className="mdi mdi-chevron-down ms-1" style={{ fontSize: 16, color: "#8899aa" }}></i>
         </DropdownToggle>
-        <DropdownMenu className="dropdown-menu-end">
-          <DropdownItem tag="a" href="/profile">
-            {" "}
-            <i className="mdi mdi-account-circle font-size-17 text-muted align-middle me-1"/>
-            {props.t("Profile")}{" "}
-          </DropdownItem>
-          <DropdownItem tag="a" href="#">
-            <i className="mdi mdi-wallet font-size-17 text-muted align-middle me-1"/>
-            {props.t("My Wallet")}
-          </DropdownItem>
-          <DropdownItem className="d-flex align-items-center" to="#">
-            <i className="mdi mdi-cog font-size-17 text-muted align-middle me-1"></i>
-            {props.t("Settings")}<span className="badge bg-success ms-auto">11</span></DropdownItem>
-          <DropdownItem tag="a" href="auth-lock-screen">
-            <i className="mdi mdi-lock-open-outline font-size-17 text-muted align-middle me-1"/>
-            {props.t("Lock screen")}
-          </DropdownItem>
-          
-          <div className="dropdown-divider"/>
+        <DropdownMenu className="dropdown-menu-end" style={{ minWidth: 200, border: "1px solid #e9ecef" }}>
+          <div className="px-3 py-2 border-bottom">
+            <p className="mb-0 fw-semibold" style={{ fontSize: 13 }}>{user.email}</p>
+            <p className="mb-0 text-muted" style={{ fontSize: 11 }}>{user.bot_name || "Admin"}</p>
+          </div>
+          <div className="dropdown-divider" />
           <Link to="/logout" className="dropdown-item text-danger">
-            <i className="mdi mdi-power font-size-17 text-muted align-middle me-1 text-danger"/>
-            <span>{props.t("Logout")}</span>
+            <i className="mdi mdi-power font-size-17 align-middle me-1 text-danger" />
+            <span>Logout</span>
           </Link>
         </DropdownMenu>
       </Dropdown>
@@ -69,16 +44,6 @@ const ProfileMenu = props => {
   )
 }
 
-ProfileMenu.propTypes = {
-  success: PropTypes.any,
-  t: PropTypes.any
-}
-
-const mapStatetoProps = state => {
-  const { error, success } = state.Profile
-  return { error, success }
-}
-
-export default withRouter(
-  connect(mapStatetoProps, {})(withTranslation()(ProfileMenu))
-)
+ProfileMenu.propTypes = { success: PropTypes.any, t: PropTypes.any }
+const mapStatetoProps = state => { const { error, success } = state.Profile; return { error, success } }
+export default withRouter(connect(mapStatetoProps, {})(withTranslation()(ProfileMenu)))

@@ -1,9 +1,30 @@
-import React, { useState } from "react";
 import { connect } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { Row, Col, Card, CardBody, Input, Label, Alert } from "reactstrap";
 import { setBreadcrumbItems } from "../../store/actions";
 import { createBot } from "../../helpers/fakebackend_helper";
+import React, { useState } from "react";
+
+// F is defined OUTSIDE so React doesn't recreate it on every keystroke
+const F = ({ label, field, type = "text", help, placeholder, form, set }) => (
+  <div className="mb-3">
+    <Label className="form-label fw-medium">{label}</Label>
+    <Input
+      type={type}
+      value={form[field] ?? ""}
+      placeholder={placeholder}
+      onChange={(e) => {
+        const val = e.target.value;
+        if (field === "bot_id") {
+          set("bot_id", val.toLowerCase().replace(/[^a-z0-9_]/g, ""));
+        } else {
+          set(field, val);
+        }
+      }}
+    />
+    {help && <small className="text-muted">{help}</small>}
+  </div>
+);
 
 const CreateBot = (props) => {
   const navigate = useNavigate();
@@ -18,13 +39,9 @@ const CreateBot = (props) => {
 
   React.useEffect(() => {
     props.setBreadcrumbItems("Create Bot", [{ title: "Admin", link: "#" }, { title: "Create Bot", link: "#" }]);
-  }, []);
+  }, []); // eslint-disable-line
 
   const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
-
-  const handleBotIdChange = (val) => {
-    set("bot_id", val.toLowerCase().replace(/[^a-z0-9_]/g, ""));
-  };
 
   const handleSubmit = () => {
     if (!form.bot_id) return setAlert({ msg: "Bot ID is required", color: "danger" });
@@ -43,14 +60,6 @@ const CreateBot = (props) => {
       .catch(() => { setSaving(false); setAlert({ msg: "Failed to create bot", color: "danger" }); });
   };
 
-  const F = ({ label, field, type = "text", help, placeholder }) => (
-    <div className="mb-3">
-      <Label className="form-label fw-medium">{label}</Label>
-      <Input type={type} value={form[field] ?? ""} placeholder={placeholder} onChange={(e) => field === "bot_id" ? handleBotIdChange(e.target.value) : set(field, e.target.value)} />
-      {help && <small className="text-muted">{help}</small>}
-    </div>
-  );
-
   return (
     <React.Fragment>
       {alert && <Alert color={alert.color} className="mb-3">{alert.msg}</Alert>}
@@ -61,22 +70,22 @@ const CreateBot = (props) => {
               <h4 className="card-title mb-4">Create New Bot</h4>
               <Row>
                 <Col xl={6}>
-                  <F label="Bot ID *" field="bot_id" placeholder="e.g. mycompany_bot" help="Lowercase letters, numbers, underscores only. Cannot be changed later." />
+                  <F label="Bot ID *" field="bot_id" placeholder="e.g. mycompany_bot" help="Lowercase letters, numbers, underscores only. Cannot be changed later." form={form} set={set} />
                 </Col>
                 <Col xl={6}>
-                  <F label="Bot Name *" field="bot_name" placeholder="e.g. MyCompany Assistant" />
+                  <F label="Bot Name *" field="bot_name" placeholder="e.g. MyCompany Assistant" form={form} set={set} />
                 </Col>
                 <Col xl={6}>
-                  <F label="Company Name" field="company_name" placeholder="e.g. MyCompany Pvt Ltd" />
+                  <F label="Company Name" field="company_name" placeholder="e.g. MyCompany Pvt Ltd" form={form} set={set} />
                 </Col>
                 <Col xl={6}>
-                  <F label="Tagline" field="tagline" placeholder="e.g. Your trusted assistant" />
+                  <F label="Tagline" field="tagline" placeholder="e.g. Your trusted assistant" form={form} set={set} />
                 </Col>
                 <Col xl={12}>
-                  <F label="Welcome Message" field="welcome_message" type="textarea" />
+                  <F label="Welcome Message" field="welcome_message" type="textarea" form={form} set={set} />
                 </Col>
                 <Col xl={12}>
-                  <F label="Logo URL" field="logo_url" placeholder="https://yourcompany.com/logo.png" />
+                  <F label="Logo URL" field="logo_url" placeholder="https://yourcompany.com/logo.png" form={form} set={set} />
                 </Col>
                 <Col xl={6}>
                   <div className="mb-3">

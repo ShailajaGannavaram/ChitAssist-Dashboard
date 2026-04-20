@@ -1,174 +1,124 @@
 import React from 'react'
 import { Link } from 'react-router-dom';
-import { Container, Row,Col, Card, CardBody, Label, Form, Alert, Input, FormFeedback } from 'reactstrap';
-import logoDark from "../../assets/images/logo-dark.png";
-import logoLight from "../../assets/images/logo-dark.png";
+import { Container, Row, Col, Card, CardBody, Label, Form, Alert, Input, FormFeedback } from 'reactstrap';
 import { useSelector, useDispatch } from "react-redux";
 import { createSelector } from "reselect";
 import PropTypes from "prop-types";
-
-// Formik validation
 import * as Yup from "yup";
 import { useFormik } from "formik";
 import withRouter from 'components/Common/withRouter';
-
-// actions
-import { loginUser, socialLogin } from "../../store/actions";
+import { loginUser } from "../../store/actions";
 
 const Login = props => {
-  document.title = "Login | Lexa - Responsive Bootstrap 5 Admin Dashboard";
-
+  document.title = "Login | Ants Digital Dashboard";
   const dispatch = useDispatch();
 
   const validation = useFormik({
-    // enableReinitialize : use this  flag when initial values needs to be changed
     enableReinitialize: true,
-
-    initialValues: {
-      email: "admin@themesbrand.com" || '',
-      password: "123456" || '',
-    },
+    initialValues: { email: '', password: '' },
     validationSchema: Yup.object({
-      email: Yup.string().required("Please Enter Your Email"),
-      password: Yup.string().required("Please Enter Your Password"),
+      email: Yup.string().required("Please enter your email"),
+      password: Yup.string().required("Please enter your password"),
     }),
     onSubmit: (values) => {
       dispatch(loginUser(values, props.router.navigate));
     }
   });
 
-
-  const selectLoginState = (state) => state.Login;
-    const LoginProperties = createSelector(
-      selectLoginState,
-        (login) => ({
-          error: login.error          
-        })
-    );
-
-    const {
-      error
-  } = useSelector(LoginProperties);
-
-    const signIn = type => {
-        dispatch(socialLogin(type, props.router.navigate));
-    };
-
-  //for facebook and google authentication
-  const socialResponse = type => {
-    signIn(type);
-  };
-
+  const { error } = useSelector(createSelector(
+    (state) => state.Login,
+    (login) => ({ error: login.error })
+  ));
 
   return (
     <React.Fragment>
-      <div className="account-pages my-5 pt-sm-5">
-            <Container>
-                <Row className="justify-content-center">
-                    <Col md={8} lg={6} xl={5}>
-                        <Card className="overflow-hidden">
-                            <CardBody className="pt-0">
+      <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #e8f4fd 0%, #ffffff 100%)", display: "flex", alignItems: "center" }}>
+        <Container>
+          <Row className="justify-content-center">
+            <Col md={8} lg={5} xl={4}>
 
-                                <h3 className="text-center mt-5 mb-4">
-                                    <Link to="/" className="d-block auth-logo">
-                                        <img src={logoDark} alt="" height="30" className="auth-logo-dark" />
-                                        <img src={logoLight} alt="" height="30" className="auth-logo-light" />
-                                    </Link>
-                                </h3>
+              {/* Logo */}
+              <div className="text-center mb-4">
+                <img
+                  src="https://antsdigital.in/assets/images/antslogo.png"
+                  alt="Ants Digital"
+                  style={{ height: 48, objectFit: "contain" }}
+                  onError={(e) => {
+                    e.target.style.display = "none";
+                    e.target.nextSibling.style.display = "flex";
+                  }}
+                />
+                <div style={{ display: "none", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#008ed3", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: "#fff", fontSize: 18 }}>A</div>
+                  <span style={{ fontSize: 22, fontWeight: 700, color: "#008ed3" }}>Ants Digital</span>
+                </div>
+              </div>
 
-                                <div className="p-3">
-                                    <h4 className="text-muted font-size-18 mb-1 text-center">Welcome Back !</h4>
-                                    <p className="text-muted text-center">Sign in to continue to Lexa.</p>
-                                    <Form
-                                      className="form-horizontal mt-4"
-                                      onSubmit={(e) => {
-                                        e.preventDefault();
-                                        validation.handleSubmit();
-                                        return false;
-                                      }}
-                                    >
-                                      {error ? <Alert color="danger">{error}</Alert> : null}
-                                        <div className="mb-3">
-                                            <Label htmlFor="username">Username</Label>
-                                            <Input
-                                              name="email"
-                                              className="form-control"
-                                              placeholder="Enter email"
-                                              type="email"
-                                              onChange={validation.handleChange}
-                                              onBlur={validation.handleBlur}
-                                              value={validation.values.email || ""}
-                                              invalid={
-                                                validation.touched.email && validation.errors.email ? true : false
-                                              }
-                                            />
-                                            {validation.touched.email && validation.errors.email ? (
-                                              <FormFeedback type="invalid">{validation.errors.email}</FormFeedback>
-                                            ) : null}
-                                        </div>
-                                        <div className="mb-3">
-                                            <Label htmlFor="userpassword">Password</Label> 
-                                            <Input
-                                              name="password"
-                                              value={validation.values.password || ""}
-                                              type="password"
-                                              placeholder="Enter Password"
-                                              onChange={validation.handleChange}
-                                              onBlur={validation.handleBlur}
-                                              invalid={
-                                                validation.touched.password && validation.errors.password ? true : false
-                                              }
-                                            />
-                                            {validation.touched.password && validation.errors.password ? (
-                                              <FormFeedback type="invalid">{validation.errors.password}</FormFeedback>
-                                            ) : null}
-                                        </div>
-                                        <Row className="mb-3 mt-4">
-                                            <div className="col-6">
-                                                <div className="form-check">
-                                                    <input type="checkbox" className="form-check-input" id="customControlInline" />
-                                                    <label className="form-check-label" htmlFor="customControlInline">Remember me
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            <div className="col-6 text-end">
-                                                <button className="btn btn-primary w-md waves-effect waves-light" type="submit">Log In</button>
-                                            </div>
-                                        </Row>
-                                        <Row className="form-group mb-0">
-                                            <div className="col-12 mt-4">
-                                                <Link to="/forgot-password" className="text-muted"><i className="mdi mdi-lock"></i> Forgot your password?</Link>
-                                            </div>
-                                        </Row>
-                                    </Form>
-                                </div>
-                            </CardBody>
-                        </Card>
-                        <Link
-                              to="#"
-                              className="social-list-item bg-danger text-white border-danger"
-                              onClick={e => {
-                                e.preventDefault();
-                                socialResponse("google");
-                              }}
-                            >
-                              <i className="mdi mdi-google" />
-                            </Link>
-                        <div className="mt-5 text-center">
-                            <p>Don't have an account ? <Link to="/register" className="text-primary"> Signup Now </Link></p>
-                            © {new Date().getFullYear()} Lexa <span className="d-none d-sm-inline-block"> - Crafted with <i className="mdi mdi-heart text-danger"></i> by Themesbrand.</span>
-                        </div>
-                    </Col>
-                </Row>
-            </Container>
-        </div>
-      
+              <Card style={{ border: "none", borderRadius: 16, boxShadow: "0 8px 32px rgba(0,142,211,0.12)" }}>
+                <CardBody style={{ padding: "36px 40px" }}>
+                  {/* Header stripe */}
+                  <div style={{ background: "#008ed3", borderRadius: 10, padding: "16px 20px", marginBottom: 28, textAlign: "center" }}>
+                    <h5 className="mb-0" style={{ color: "#fff", fontWeight: 700 }}>Dashboard Login</h5>
+                    <p className="mb-0" style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, marginTop: 4 }}>Sign in to your account</p>
+                  </div>
+
+                  <Form onSubmit={(e) => { e.preventDefault(); validation.handleSubmit(); }}>
+                    {error && <Alert color="danger" className="mb-3">{error}</Alert>}
+
+                    <div className="mb-3">
+                      <Label className="fw-medium">Email</Label>
+                      <Input
+                        name="email"
+                        type="email"
+                        placeholder="Enter your email"
+                        onChange={validation.handleChange}
+                        onBlur={validation.handleBlur}
+                        value={validation.values.email}
+                        invalid={!!(validation.touched.email && validation.errors.email)}
+                        style={{ borderRadius: 8, padding: "10px 14px" }}
+                      />
+                      {validation.touched.email && validation.errors.email &&
+                        <FormFeedback>{validation.errors.email}</FormFeedback>}
+                    </div>
+
+                    <div className="mb-4">
+                      <Label className="fw-medium">Password</Label>
+                      <Input
+                        name="password"
+                        type="password"
+                        placeholder="Enter your password"
+                        onChange={validation.handleChange}
+                        onBlur={validation.handleBlur}
+                        value={validation.values.password}
+                        invalid={!!(validation.touched.password && validation.errors.password)}
+                        style={{ borderRadius: 8, padding: "10px 14px" }}
+                      />
+                      {validation.touched.password && validation.errors.password &&
+                        <FormFeedback>{validation.errors.password}</FormFeedback>}
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="btn w-100"
+                      style={{ background: "#008ed3", color: "#fff", borderRadius: 8, padding: "11px", fontWeight: 600, fontSize: 15, border: "none" }}
+                    >
+                      Sign In
+                    </button>
+                  </Form>
+                </CardBody>
+              </Card>
+
+              <div className="text-center mt-3" style={{ color: "#99aabb", fontSize: 12 }}>
+                © {new Date().getFullYear()} Ants Digital. All rights reserved.
+              </div>
+
+            </Col>
+          </Row>
+        </Container>
+      </div>
     </React.Fragment>
-  )
-}
+  );
+};
 
 export default withRouter(Login);
-
-Login.propTypes = {
-  history: PropTypes.object,
-};
+Login.propTypes = { history: PropTypes.object };

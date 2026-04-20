@@ -1,0 +1,68 @@
+// Ants Digital Theme — Blue & White
+
+// Sidebar
+.vertical-menu {
+  background: #ffffff !important;
+  border-right: 1px solid #e0ecf8;
+}
+
+#sidebar-menu ul li a {
+  color: #445566 !important;
+  &:hover {
+    color: #008ed3 !important;
+    background: rgba(0, 142, 211, 0.07) !important;
+  }
+  i { color: #99aabb !important; }
+  &:hover i { color: #008ed3 !important; }
+}
+
+#sidebar-menu ul li.mm-active > a,
+#sidebar-menu ul li a.active {
+  color: #008ed3 !important;
+  background: rgba(0, 142, 211, 0.10) !important;
+  border-left: 3px solid #008ed3;
+  i { color: #008ed3 !important; }
+}
+
+.menu-title {
+  color: #008ed3 !important;
+  font-size: 10px !important;
+  letter-spacing: 1px;
+}
+
+// Topbar — Ants blue
+#page-topbar {
+  background: #008ed3 !important;
+  border-bottom: none !important;
+  box-shadow: 0 2px 8px rgba(0,142,211,0.2) !important;
+}
+
+.navbar-brand-box {
+  background: #007bbf !important;
+  border-right: 1px solid rgba(255,255,255,0.1);
+}
+
+// Header text/icons white on blue bg
+.header-item { color: #ffffff !important; }
+.noti-icon i { color: #ffffff !important; }
+
+// Buttons
+.btn-primary {
+  background-color: #008ed3 !important;
+  border-color: #008ed3 !important;
+  &:hover { background-color: #0079b8 !important; border-color: #0079b8 !important; }
+}
+
+.bg-primary { background-color: #008ed3 !important; }
+.text-primary { color: #008ed3 !important; }
+
+.nav-tabs .nav-link.active {
+  color: #008ed3 !important;
+  border-bottom: 2px solid #008ed3;
+}
+
+.footer {
+  background: #f4f9fd !important;
+  color: #778899 !important;
+  border-top: 1px solid #e0ecf8;
+}
