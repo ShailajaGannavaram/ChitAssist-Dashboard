@@ -7,8 +7,7 @@ import { Link } from "react-router-dom"
 import { withTranslation } from "react-i18next"
 
 const getAuthUser = () => {
-  try { return JSON.parse(localStorage.getItem("authUser") || "{}"); }
-  catch { return {}; }
+  try { return JSON.parse(localStorage.getItem("authUser") || "{}"); } catch { return {}; }
 };
 
 const SidebarContent = props => {
@@ -38,17 +37,14 @@ const SidebarContent = props => {
           }
         }
       }
-      scrollElement(item)
-      return false
+      scrollElement(item); return false
     }
-    scrollElement(item)
-    return false
+    scrollElement(item); return false
   }, [])
 
   const removeActivation = (items) => {
     for (var i = 0; i < items.length; ++i) {
-      var item = items[i]
-      const parent = items[i].parentElement
+      var item = items[i]; const parent = items[i].parentElement
       if (item && item.classList.contains("active")) item.classList.remove("active")
       if (parent) {
         const parent2El = parent.childNodes && parent.childNodes.lenght && parent.childNodes[1] ? parent.childNodes[1] : null
@@ -59,8 +55,7 @@ const SidebarContent = props => {
           parent2.classList.remove("mm-show")
           const parent3 = parent2.parentElement
           if (parent3) {
-            parent3.classList.remove("mm-active")
-            parent3.childNodes[0].classList.remove("mm-active")
+            parent3.classList.remove("mm-active"); parent3.childNodes[0].classList.remove("mm-active")
             const parent4 = parent3.parentElement
             if (parent4) {
               parent4.classList.remove("mm-show")
@@ -90,10 +85,7 @@ const SidebarContent = props => {
   useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); activeMenu() }, [activeMenu])
 
   function scrollElement(item) {
-    if (item) {
-      const currentPosition = item.offsetTop
-      if (currentPosition > window.innerHeight) ref.current.getScrollElement().scrollTop = currentPosition - 300
-    }
+    if (item) { const cur = item.offsetTop; if (cur > window.innerHeight) ref.current.getScrollElement().scrollTop = cur - 300 }
   }
 
   return (
@@ -101,59 +93,26 @@ const SidebarContent = props => {
       <SimpleBar style={{ maxHeight: "100%" }} ref={ref}>
         <div id="sidebar-menu">
           <ul className="metismenu list-unstyled" id="side-menu">
-
             {isSuperuser ? (
               <>
                 <li className="menu-title">Admin Panel</li>
-                <li>
-                  <Link to="/admin-bots" className="waves-effect">
-                    <i className="mdi mdi-view-grid-outline"></i>
-                    <span>All Bots</span>
-                  </Link>
-                </li>
+                <li><Link to="/admin-bots" className="waves-effect"><i className="mdi mdi-view-grid-outline"></i><span>All Bots</span></Link></li>
+                <li><Link to="/create-bot" className="waves-effect"><i className="mdi mdi-robot-outline"></i><span>Create Bot</span></Link></li>
+                <li><Link to="/users" className="waves-effect"><i className="mdi mdi-account-group"></i><span>User Management</span></Link></li>
               </>
             ) : (
               <>
                 <li className="menu-title">Main</li>
-                <li>
-                  <Link to="/dashboard" className="waves-effect">
-                    <i className="mdi mdi-view-dashboard"></i>
-                    <span>Dashboard</span>
-                  </Link>
-                </li>
-
+                <li><Link to="/dashboard" className="waves-effect"><i className="mdi mdi-view-dashboard"></i><span>Dashboard</span></Link></li>
                 <li className="menu-title">Bot Data</li>
-                <li>
-                  <Link to="/leads" className="waves-effect">
-                    <i className="mdi mdi-account-check"></i>
-                    <span>Leads</span>
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/conversations" className="waves-effect">
-                    <i className="mdi mdi-chat-processing-outline"></i>
-                    <span>Conversations</span>
-                  </Link>
-                </li>
-
+                <li><Link to="/leads" className="waves-effect"><i className="mdi mdi-account-check"></i><span>Leads</span></Link></li>
+                <li><Link to="/conversations" className="waves-effect"><i className="mdi mdi-chat-processing-outline"></i><span>Conversations</span></Link></li>
                 <li className="menu-title">Settings</li>
-                <li>
-                  <Link to="/bot-config" className="waves-effect">
-                    <i className="mdi mdi-robot-outline"></i>
-                    <span>Bot Configuration</span>
-                  </Link>
-                </li>
+                <li><Link to="/bot-config" className="waves-effect"><i className="mdi mdi-cog-outline"></i><span>Bot Configuration</span></Link></li>
               </>
             )}
-
             <li className="menu-title">Account</li>
-            <li>
-              <Link to="/logout" className="waves-effect">
-                <i className="mdi mdi-logout"></i>
-                <span>Logout</span>
-              </Link>
-            </li>
-
+            <li><Link to="/logout" className="waves-effect"><i className="mdi mdi-logout"></i><span>Logout</span></Link></li>
           </ul>
         </div>
       </SimpleBar>
