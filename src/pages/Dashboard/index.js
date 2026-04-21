@@ -8,60 +8,80 @@ const getAuthUser = () => {
   try { return JSON.parse(localStorage.getItem("authUser") || "{}"); } catch { return {}; }
 };
 
-const StatCard = ({ title, value, icon, color }) => (
+const StatCard = ({ title, value, sub, icon, color }) => (
   <Card className="mini-stats-wid">
     <CardBody>
       <div className="d-flex">
         <div className="flex-grow-1">
           <p className="text-muted fw-medium mb-2">{title}</p>
           <h4 className="mb-0">{value ?? "—"}</h4>
+          {sub && <p className="text-muted mt-1 mb-0" style={{ fontSize: 12 }}>{sub}</p>}
         </div>
-        <div className="mini-stat-icon avatar-sm rounded-circle align-self-center" style={{ background: color }}>
-          <span className="avatar-title rounded-circle" style={{ background: color }}>
-            <i className={`${icon} font-size-24`} style={{ color: "#fff" }}></i>
-          </span>
+        <div style={{ width: 48, height: 48, borderRadius: "50%", background: color, display: "flex", alignItems: "center", justifyContent: "center", alignSelf: "center", flexShrink: 0 }}>
+          <i className={`${icon} font-size-22`} style={{ color: "#fff" }}></i>
         </div>
       </div>
     </CardBody>
   </Card>
 );
 
-const Dashboard = (props) => {
+const Dashboard = ({ setBreadcrumbItems }) => {
   const dispatch = useDispatch();
   const user = getAuthUser();
   const botId = user.bot_id || "margadarsi";
-
-  document.title = `${user.bot_name || "Dashboard"} | ChitAssist`;
+  document.title = `Dashboard | ${user.bot_name || "Ants Digital"}`;
 
   useEffect(() => {
-    props.setBreadcrumbItems(user.bot_name || "Dashboard", [{ title: "Dashboard", link: "#" }]);
+    setBreadcrumbItems(user.bot_name || "Dashboard", [{ title: "Dashboard", link: "#" }]);
     dispatch(fetchDashboardData(botId));
-  }, [botId]);
+  }, [botId]); // eslint-disable-line
 
   const { stats, leadsChart, convsChart, recentLeads, loading } = useSelector((s) => s.Dashboard);
 
-  const chartOptions = (data, color, label) => ({
-    options: {
-      chart: { toolbar: { show: false }, sparkline: { enabled: false } },
-      colors: [color],
-      xaxis: { categories: (data || []).map((d) => d.date || d.label || ""), labels: { style: { fontSize: "11px" } } },
-      stroke: { curve: "smooth", width: 2 },
-      fill: { type: "gradient", gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05 } },
-      dataLabels: { enabled: false },
-      tooltip: { x: { format: "dd MMM" } },
-      grid: { borderColor: "#f1f1f1" },
+  // Chart options — leads
+  const leadsOptions = {
+    chart: { type: "area", toolbar: { show: false }, animations: { enabled: true } },
+    stroke: { curve: "smooth", width: 2 },
+    fill: { type: "gradient", gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05 } },
+    colors: ["#008ed3"],
+    xaxis: {
+      categories: (leadsChart || []).map((d) => d.date),
+      labels: { rotate: -45, style: { fontSize: "10px" } },
+      tickAmount: 10,
     },
-    series: [{ name: label, data: (data || []).map((d) => d.count || d.value || 0) }],
-  });
+    yaxis: { min: 0, labels: { formatter: (v) => Math.round(v) } },
+    dataLabels: { enabled: false },
+    grid: { borderColor: "#f1f1f1" },
+    tooltip: { y: { formatter: (v) => `${v} leads` } },
+  };
 
-  const leadsChartData = chartOptions(leadsChart, "#556ee6", "Leads");
-  const convsChartData = chartOptions(convsChart, "#34c38f", "Conversations");
+  // Chart options — conversations
+  const convsOptions = {
+    chart: { type: "bar", toolbar: { show: false } },
+    colors: ["#34c38f"],
+    xaxis: {
+      categories: (convsChart || []).map((d) => d.date),
+      labels: { rotate: -45, style: { fontSize: "10px" } },
+      tickAmount: 10,
+    },
+    yaxis: { min: 0, labels: { formatter: (v) => Math.round(v) } },
+    dataLabels: { enabled: false },
+    grid: { borderColor: "#f1f1f1" },
+    plotOptions: { bar: { borderRadius: 3, columnWidth: "60%" } },
+    tooltip: { y: { formatter: (v) => `${v} conversations` } },
+  };
+
+  // Total from chart data
+  const leadsTotal = (leadsChart || []).reduce((a, d) => a + (d.leads || 0), 0);
+  const convsTotal = (convsChart || []).reduce((a, d) => a + (d.conversations || 0), 0);
+  const leadsAvg = leadsChart?.length ? (leadsTotal / leadsChart.length).toFixed(1) : 0;
+  const convsAvg = convsChart?.length ? (convsTotal / convsChart.length).toFixed(1) : 0;
 
   if (loading) {
     return (
       <div className="text-center py-5">
-        <div className="spinner-border text-primary" role="status" />
-        <p className="mt-3 text-muted">Loading dashboard...</p>
+        <div className="spinner-border" style={{ color: "#008ed3" }} role="status" />
+        <p className="mt-3 text-muted">Loading dashboard data...</p>
       </div>
     );
   }
@@ -70,10 +90,10 @@ const Dashboard = (props) => {
     <React.Fragment>
       {/* Stat Cards */}
       <Row>
-        <Col md={3}><StatCard title="Total Leads" value={stats?.total_leads} icon="mdi mdi-account-check" color="#556ee6" /></Col>
-        <Col md={3}><StatCard title="Total Conversations" value={stats?.total_conversations} icon="mdi mdi-chat-processing" color="#34c38f" /></Col>
-        <Col md={3}><StatCard title="Today's Leads" value={stats?.today_leads} icon="mdi mdi-account-plus" color="#f46a6a" /></Col>
-        <Col md={3}><StatCard title="Today's Conversations" value={stats?.today_conversations} icon="mdi mdi-message-plus" color="#f1b44c" /></Col>
+        <Col xl={3} md={6}><StatCard title="Total Leads" value={stats?.total_leads ?? "—"} sub={`Today: ${stats?.today_leads ?? 0}`} icon="mdi mdi-account-check" color="#008ed3" /></Col>
+        <Col xl={3} md={6}><StatCard title="Total Conversations" value={stats?.total_conversations ?? "—"} sub={`Today: ${stats?.today_conversations ?? 0}`} icon="mdi mdi-chat-processing" color="#34c38f" /></Col>
+        <Col xl={3} md={6}><StatCard title="Avg Leads / Day" value={leadsAvg} sub="Last 30 days" icon="mdi mdi-trending-up" color="#f1b44c" /></Col>
+        <Col xl={3} md={6}><StatCard title="Avg Conversations / Day" value={convsAvg} sub="Last 30 days" icon="mdi mdi-chart-bar" color="#50a5f1" /></Col>
       </Row>
 
       {/* Charts */}
@@ -81,22 +101,44 @@ const Dashboard = (props) => {
         <Col xl={6}>
           <Card>
             <CardBody>
-              <h4 className="card-title mb-4">Leads Over Time</h4>
-              <ReactApexChart options={leadsChartData.options} series={leadsChartData.series} type="area" height={260} />
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h4 className="card-title mb-0">Leads — Last 30 Days</h4>
+                <span className="badge" style={{ background: "#008ed3", color: "#fff", fontSize: 12 }}>Total: {leadsTotal}</span>
+              </div>
+              {(leadsChart || []).length > 0 ? (
+                <ReactApexChart
+                  options={leadsOptions}
+                  series={[{ name: "Leads", data: (leadsChart || []).map((d) => d.leads || 0) }]}
+                  type="area" height={280}
+                />
+              ) : (
+                <div className="text-center text-muted py-5"><i className="mdi mdi-chart-line font-size-36 d-block mb-2"></i>No leads data yet</div>
+              )}
             </CardBody>
           </Card>
         </Col>
         <Col xl={6}>
           <Card>
             <CardBody>
-              <h4 className="card-title mb-4">Conversations Over Time</h4>
-              <ReactApexChart options={convsChartData.options} series={convsChartData.series} type="area" height={260} />
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h4 className="card-title mb-0">Conversations — Last 30 Days</h4>
+                <span className="badge" style={{ background: "#34c38f", color: "#fff", fontSize: 12 }}>Total: {convsTotal}</span>
+              </div>
+              {(convsChart || []).length > 0 ? (
+                <ReactApexChart
+                  options={convsOptions}
+                  series={[{ name: "Conversations", data: (convsChart || []).map((d) => d.conversations || 0) }]}
+                  type="bar" height={280}
+                />
+              ) : (
+                <div className="text-center text-muted py-5"><i className="mdi mdi-chart-bar font-size-36 d-block mb-2"></i>No conversation data yet</div>
+              )}
             </CardBody>
           </Card>
         </Col>
       </Row>
 
-      {/* Recent Leads Table */}
+      {/* Recent Leads */}
       <Row>
         <Col xl={12}>
           <Card>
@@ -105,28 +147,21 @@ const Dashboard = (props) => {
               <div className="table-responsive">
                 <table className="table table-centered table-hover table-nowrap mb-0">
                   <thead className="table-light">
-                    <tr>
-                      <th>#</th>
-                      <th>Serial</th>
-                      <th>Name</th>
-                      <th>Phone</th>
-                      <th>Date</th>
-                    </tr>
+                    <tr><th>#</th><th>Serial</th><th>Name</th><th>Phone</th><th>Date</th><th>Webhook</th></tr>
                   </thead>
                   <tbody>
-                    {(recentLeads || []).length === 0 ? (
-                      <tr><td colSpan={5} className="text-center text-muted py-3">No leads yet</td></tr>
-                    ) : (
-                      (recentLeads || []).map((lead, i) => (
-                        <tr key={i}>
-                          <td>{i + 1}</td>
-                          <td><span className="badge bg-primary">{lead.lead_date}#{String(lead.serial_number).padStart(3,"0")}</span></td>
-                          <td>{lead.data?.name || lead.data?.Name || "—"}</td>
-                          <td>{lead.data?.phone || lead.data?.Phone || lead.data?.mobile || "—"}</td>
-                          <td>{lead.lead_date}</td>
-                        </tr>
-                      ))
-                    )}
+                    {!(recentLeads || []).length ? (
+                      <tr><td colSpan={6} className="text-center text-muted py-4">No leads yet</td></tr>
+                    ) : (recentLeads || []).map((lead, i) => (
+                      <tr key={i}>
+                        <td>{i + 1}</td>
+                        <td><span className="badge" style={{ background: "#008ed3" }}>{lead.lead_date}#{String(lead.serial_number || i+1).padStart(3,"0")}</span></td>
+                        <td>{lead.data?.name || lead.data?.Name || lead.name || "—"}</td>
+                        <td>{lead.data?.phone || lead.data?.Phone || lead.phone || "—"}</td>
+                        <td>{lead.lead_date}</td>
+                        <td><span className={`badge ${lead.webhook_sent ? "bg-success" : "bg-warning"}`}>{lead.webhook_sent ? "Sent" : "Pending"}</span></td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

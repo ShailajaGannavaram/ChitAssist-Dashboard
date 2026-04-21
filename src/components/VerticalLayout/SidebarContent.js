@@ -27,8 +27,7 @@ const SidebarContent = props => {
         parent2.classList.add("mm-show")
         const parent3 = parent2.parentElement
         if (parent3) {
-          parent3.classList.add("mm-active")
-          parent3.childNodes[0].classList.add("mm-active")
+          parent3.classList.add("mm-active"); parent3.childNodes[0].classList.add("mm-active")
           const parent4 = parent3.parentElement
           if (parent4) {
             parent4.classList.add("mm-show")
@@ -92,13 +91,10 @@ const SidebarContent = props => {
     <React.Fragment>
       <SimpleBar style={{ maxHeight: "100%" }} ref={ref}>
         <div id="sidebar-menu">
-          {/* Ants Digital branding strip at top of sidebar */}
-          <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid #1a2035", marginBottom: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <img src="https://antsdigital.in/assets/images/antslogo.png" alt="Ants Digital" style={{ height: 28 }}
-                onError={(e) => e.target.style.display = "none"} />
-            </div>
-            <div style={{ fontSize: 10, color: "#445566", marginTop: 4, letterSpacing: 1, textTransform: "uppercase" }}>Powered by Ants Digital</div>
+          <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid #e0ecf8", marginBottom: 8 }}>
+            <img src="https://antsdigital.in/assets/images/antslogo.png" alt="Ants Digital"
+              style={{ height: 28 }} onError={(e) => e.target.style.display = "none"} />
+            <div style={{ fontSize: 10, color: "#008ed3", marginTop: 4, letterSpacing: 1, textTransform: "uppercase" }}>Powered by Ants Digital</div>
           </div>
 
           <ul className="metismenu list-unstyled" id="side-menu">
@@ -121,6 +117,7 @@ const SidebarContent = props => {
               </>
             )}
             <li className="menu-title" style={{ color: "#008ed3", fontSize: 10, letterSpacing: 1 }}>ACCOUNT</li>
+            <li><Link to="/change-password" className="waves-effect"><i className="mdi mdi-lock-reset"></i><span>Change Password</span></Link></li>
             <li><Link to="/logout" className="waves-effect"><i className="mdi mdi-logout"></i><span>Logout</span></Link></li>
           </ul>
         </div>
