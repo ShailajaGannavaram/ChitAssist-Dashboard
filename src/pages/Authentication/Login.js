@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom';
 import { Container, Row, Col, Card, CardBody, Label, Form, Alert, Input, FormFeedback } from 'reactstrap';
 import { useSelector, useDispatch } from "react-redux";
@@ -12,6 +12,7 @@ import { loginUser } from "../../store/actions";
 const Login = props => {
   document.title = "Login | Ants Digital Dashboard";
   const dispatch = useDispatch();
+  const [rememberMe, setRememberMe] = useState(false);
 
   const validation = useFormik({
     enableReinitialize: true,
@@ -21,7 +22,7 @@ const Login = props => {
       password: Yup.string().required("Please enter your password"),
     }),
     onSubmit: (values) => {
-      dispatch(loginUser(values, props.router.navigate));
+      dispatch(loginUser({ ...values, rememberMe }, props.router.navigate));
     }
   });
 
@@ -36,23 +37,19 @@ const Login = props => {
         <Container>
           <Row className="justify-content-center">
             <Col md={8} lg={5} xl={4}>
-
               <div className="text-center mb-4">
                 <img src="https://antsdigital.in/assets/images/antslogo.png" alt="Ants Digital"
                   style={{ height: 48, objectFit: "contain" }}
-                  onError={(e) => { e.target.style.display = "none"; }} />
+                  onError={(e) => e.target.style.display = "none"} />
               </div>
-
               <Card style={{ border: "none", borderRadius: 16, boxShadow: "0 8px 32px rgba(0,142,211,0.12)" }}>
                 <CardBody style={{ padding: "36px 40px" }}>
                   <div style={{ background: "#008ed3", borderRadius: 10, padding: "16px 20px", marginBottom: 28, textAlign: "center" }}>
                     <h5 className="mb-0" style={{ color: "#fff", fontWeight: 700 }}>Dashboard Login</h5>
                     <p className="mb-0" style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, marginTop: 4 }}>Sign in to your account</p>
                   </div>
-
                   <Form onSubmit={(e) => { e.preventDefault(); validation.handleSubmit(); }}>
                     {error && <Alert color="danger" className="mb-3">{error}</Alert>}
-
                     <div className="mb-3">
                       <Label className="fw-medium">Email</Label>
                       <Input name="email" type="email" placeholder="Enter your email"
@@ -63,7 +60,6 @@ const Login = props => {
                       {validation.touched.email && validation.errors.email &&
                         <FormFeedback>{validation.errors.email}</FormFeedback>}
                     </div>
-
                     <div className="mb-3">
                       <Label className="fw-medium">Password</Label>
                       <Input name="password" type="password" placeholder="Enter your password"
@@ -75,23 +71,30 @@ const Login = props => {
                         <FormFeedback>{validation.errors.password}</FormFeedback>}
                     </div>
 
-                    <div className="mb-4 text-end">
+                    {/* Remember Me + Forgot Password */}
+                    <div className="d-flex justify-content-between align-items-center mb-4">
+                      <div className="d-flex align-items-center gap-2">
+                        <input type="checkbox" id="rememberMe" checked={rememberMe}
+                          onChange={(e) => setRememberMe(e.target.checked)}
+                          style={{ width: 16, height: 16, cursor: "pointer", accentColor: "#008ed3" }} />
+                        <label htmlFor="rememberMe" style={{ fontSize: 13, color: "#555", cursor: "pointer", marginBottom: 0 }}>
+                          Remember me
+                        </label>
+                      </div>
                       <Link to="/forgot-password" style={{ fontSize: 13, color: "#008ed3" }}>
-                        <i className="mdi mdi-lock me-1"></i>Forgot password?
+                        Forgot password?
                       </Link>
                     </div>
 
-                    <button type="submit" disabled={loading}
-                      className="btn w-100"
+                    <button type="submit" disabled={loading} className="btn w-100"
                       style={{ background: "#008ed3", color: "#fff", borderRadius: 8, padding: "11px", fontWeight: 600, fontSize: 15, border: "none", opacity: loading ? 0.8 : 1 }}>
-                      {loading ? (
-                        <><span className="spinner-border spinner-border-sm me-2" role="status"></span>Signing in...</>
-                      ) : "Sign In"}
+                      {loading
+                        ? <><span className="spinner-border spinner-border-sm me-2" role="status"></span>Signing in...</>
+                        : "Sign In"}
                     </button>
                   </Form>
                 </CardBody>
               </Card>
-
               <div className="text-center mt-3" style={{ color: "#99aabb", fontSize: 12 }}>
                 © {new Date().getFullYear()} Ants Digital. All rights reserved.
               </div>

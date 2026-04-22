@@ -4,6 +4,7 @@ import Login from "../pages/Authentication/Login"
 import Logout from "../pages/Authentication/Logout"
 import Register from "../pages/Authentication/Register"
 import ForgetPwd from "../pages/Authentication/ForgetPassword"
+import ResetPassword from "../pages/Authentication/ResetPassword"
 import Login1 from "../pages/AuthenticationInner/Login"
 import Register1 from "../pages/AuthenticationInner/Register"
 import Recoverpw from "../pages/AuthenticationInner/Recoverpw"
@@ -37,6 +38,7 @@ const authRoutes = [
   { path: "/logout",           component: <Logout /> },
   { path: "/login",            component: <Login /> },
   { path: "/forgot-password",  component: <ForgetPwd /> },
+  { path: "/reset-password",   component: <ResetPassword /> },
   { path: "/register",         component: <Register /> },
   { path: "/pages-404",        component: <Pages404 /> },
   { path: "/pages-500",        component: <Pages500 /> },
