@@ -57,7 +57,11 @@ const CreateBot = (props) => {
           setAlert({ msg: r.error || "Failed to create bot", color: "danger" });
         }
       })
-      .catch(() => { setSaving(false); setAlert({ msg: "Failed to create bot", color: "danger" }); });
+      .catch((err) => {
+        setSaving(false);
+        const msg = err?.response?.data?.error || err?.message || "Failed to create bot";
+        setAlert({ msg, color: "danger" });
+      });
   };
 
   return (

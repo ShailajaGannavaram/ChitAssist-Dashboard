@@ -30,8 +30,8 @@ const ForgetPassword = () => {
         const data = await res.json();
         if (res.ok) setSuccess(true);
         else setError(data.error || "Something went wrong. Please try again.");
-      } catch {
-        setError("Could not connect to server. Please try again.");
+      } catch (err) {
+        setError(err?.response?.data?.error || "Could not connect to server. Please try again.");
       } finally {
         setLoading(false);
       }

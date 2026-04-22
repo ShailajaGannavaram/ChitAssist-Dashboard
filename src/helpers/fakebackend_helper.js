@@ -14,7 +14,7 @@ export const updateBotConfig = (data) => post(url.UPDATE_BOT_CONFIG, data);
 export const getConversationHistory = (sessionId, botId) =>
   get(`${url.GET_CONVERSATION_HISTORY}?session_id=${sessionId}&bot_id=${botId}`);
 export const getAdminAllBots = () => get(url.GET_ADMIN_ALL_BOTS);
-export const createBot = (data) => post(url.CREATE_BOT, data);
+export const createBot = (data) => post("/api/admin/bots/create/", data);
 export const getAdminUsers = () => get(url.GET_ADMIN_USERS);
 export const createUser = (data) => post(url.GET_ADMIN_USERS, data);
 export const updateUser = (id, data) => post(`${url.ADMIN_USER_DETAIL}${id}/`, { ...data, _method: 'PATCH' });
