@@ -1,5 +1,5 @@
 import PropTypes from "prop-types"
-import React, { useCallback, useEffect, useRef } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import SimpleBar from "simplebar-react"
 import MetisMenu from "metismenujs"
 import withRouter from "components/Common/withRouter"
@@ -10,10 +10,26 @@ const getAuthUser = () => {
   try { return JSON.parse(localStorage.getItem("authUser") || "{}"); } catch { return {}; }
 };
 
+const API_URL = process.env.REACT_APP_API_URL || "https://chitassistant.onrender.com";
+
 const SidebarContent = props => {
   const ref = useRef()
   const user = getAuthUser()
   const isSuperuser = user.is_superuser === true
+  const botId = user.bot_id
+  const [newLeadsCount, setNewLeadsCount] = useState(0)
+
+  // Fetch today's lead count for badge
+  useEffect(() => {
+    if (!isSuperuser && botId) {
+      fetch(`${API_URL}/api/client/stats/enhanced/?bot_id=${botId}`, {
+        headers: { Authorization: `Bearer ${user.access || ""}` }
+      })
+        .then((r) => r.json())
+        .then((d) => { if (d.today_leads) setNewLeadsCount(d.today_leads); })
+        .catch(() => {});
+    }
+  }, [botId]); // eslint-disable-line
 
   const activateParentDropdown = useCallback((item) => {
     item.classList.add("active")
@@ -109,13 +125,26 @@ const SidebarContent = props => {
               <>
                 <li className="menu-title" style={{ color: "#008ed3", fontSize: 10, letterSpacing: 1 }}>MAIN</li>
                 <li><Link to="/dashboard" className="waves-effect"><i className="mdi mdi-view-dashboard"></i><span>Dashboard</span></Link></li>
+
                 <li className="menu-title" style={{ color: "#008ed3", fontSize: 10, letterSpacing: 1 }}>BOT DATA</li>
-                <li><Link to="/leads" className="waves-effect"><i className="mdi mdi-account-check"></i><span>Leads</span></Link></li>
+                <li>
+                  <Link to="/leads" className="waves-effect">
+                    <i className="mdi mdi-account-check"></i>
+                    <span>Leads</span>
+                    {newLeadsCount > 0 && (
+                      <span style={{ marginLeft: "auto", background: "#f46a6a", color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: 11, fontWeight: 700 }}>
+                        {newLeadsCount} today
+                      </span>
+                    )}
+                  </Link>
+                </li>
                 <li><Link to="/conversations" className="waves-effect"><i className="mdi mdi-chat-processing-outline"></i><span>Conversations</span></Link></li>
+
                 <li className="menu-title" style={{ color: "#008ed3", fontSize: 10, letterSpacing: 1 }}>SETTINGS</li>
                 <li><Link to="/bot-config" className="waves-effect"><i className="mdi mdi-cog-outline"></i><span>Bot Configuration</span></Link></li>
               </>
             )}
+
             <li className="menu-title" style={{ color: "#008ed3", fontSize: 10, letterSpacing: 1 }}>ACCOUNT</li>
             <li><Link to="/change-password" className="waves-effect"><i className="mdi mdi-lock-reset"></i><span>Change Password</span></Link></li>
             <li><Link to="/logout" className="waves-effect"><i className="mdi mdi-logout"></i><span>Logout</span></Link></li>

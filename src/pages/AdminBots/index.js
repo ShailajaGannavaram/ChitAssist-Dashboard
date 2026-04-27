@@ -5,6 +5,16 @@ import { setBreadcrumbItems, fetchConversationHistory } from "../../store/action
 import { getAdminAllBots, getLeads, getConversations } from "../../helpers/fakebackend_helper";
 import BotConfig from "../BotConfig/index";
 
+const API_URL = process.env.REACT_APP_API_URL || "https://chitassistant.onrender.com";
+const getToken = () => { try { return JSON.parse(localStorage.getItem("authUser") || "{}").access || ""; } catch { return ""; } };
+
+const toggleBot = (botId) =>
+  fetch(`${API_URL}/api/admin/bots/toggle/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify({ bot_id: botId }),
+  }).then((r) => r.json());
+
 const AdminBots = ({ setBreadcrumbItems }) => {
   const dispatch = useDispatch();
   const [bots, setBots] = useState([]);
@@ -18,13 +28,18 @@ const AdminBots = ({ setBreadcrumbItems }) => {
   const [offcanvasOpen, setOffcanvasOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
   const [configModal, setConfigModal] = useState(false);
+  const [toggling, setToggling] = useState(null);
   document.title = "All Bots | ChitAssist Admin";
 
   const { history, historyLoading } = useSelector((s) => s.Conversations);
 
+  const loadBots = useCallback(() => {
+    getAdminAllBots().then((d) => { setBots(d.bots || []); setLoading(false); }).catch(() => setLoading(false));
+  }, []);
+
   useEffect(() => {
     setBreadcrumbItems("All Bots", [{ title: "Admin", link: "#" }, { title: "All Bots", link: "#" }]);
-    getAdminAllBots().then((d) => { setBots(d.bots || []); setLoading(false); }).catch(() => setLoading(false));
+    loadBots();
   }, []); // eslint-disable-line
 
   const selectBot = useCallback((bot) => {
@@ -39,6 +54,16 @@ const AdminBots = ({ setBreadcrumbItems }) => {
     dispatch(fetchConversationHistory(sessionId, selectedBot.bot_id));
   }, [dispatch, selectedBot]);
 
+  const handleToggle = async (bot) => {
+    setToggling(bot.bot_id);
+    const r = await toggleBot(bot.bot_id);
+    if (r.success) {
+      setBots((prev) => prev.map((b) => b.bot_id === bot.bot_id ? { ...b, is_active: r.is_active } : b));
+      if (selectedBot?.bot_id === bot.bot_id) setSelectedBot((s) => ({ ...s, is_active: r.is_active }));
+    }
+    setToggling(null);
+  };
+
   const messages = history?.history || [];
   const allKeys = Array.from(new Set((leads || []).flatMap((l) => Object.keys(l.data || {}))));
   const filteredLeads = leads.filter((l) => allKeys.some((k) => String(l.data?.[k] || "").toLowerCase().includes(search.toLowerCase())));
@@ -49,21 +74,35 @@ const AdminBots = ({ setBreadcrumbItems }) => {
   return (
     <React.Fragment>
       <Row>
+        {/* Bot List */}
         <Col xl={3}>
           <Card style={{ position: "sticky", top: 80 }}>
             <CardBody>
               <h6 className="mb-3">All Bots <Badge color="primary">{bots.length}</Badge></h6>
               {bots.map((bot) => (
-                <div key={bot.bot_id} onClick={() => selectBot(bot)} style={{ padding: 12, borderRadius: 10, marginBottom: 8, cursor: "pointer", border: `2px solid ${selectedBot?.bot_id === bot.bot_id ? bot.primary_color || "#008ed3" : "#e9ecef"}`, background: selectedBot?.bot_id === bot.bot_id ? `${bot.primary_color}11` : "#fff", transition: "all 0.2s" }}>
+                <div key={bot.bot_id} onClick={() => selectBot(bot)} style={{
+                  padding: 12, borderRadius: 10, marginBottom: 8, cursor: "pointer",
+                  border: `2px solid ${selectedBot?.bot_id === bot.bot_id ? bot.primary_color || "#008ed3" : "#e9ecef"}`,
+                  background: selectedBot?.bot_id === bot.bot_id ? `${bot.primary_color}11` : "#fff",
+                  transition: "all 0.2s", opacity: bot.is_active === false ? 0.6 : 1,
+                }}>
                   <div className="d-flex align-items-center gap-2">
                     <div style={{ width: 32, height: 32, borderRadius: 8, background: bot.primary_color || "#008ed3", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {bot.logo_url ? <img src={bot.logo_url} alt="" style={{ height: 20, filter: "brightness(0) invert(1)" }} onError={(e) => e.target.style.display = "none"} /> : <i className="mdi mdi-robot" style={{ color: "#fff", fontSize: 16 }}></i>}
+                      {bot.logo_url
+                        ? <img src={bot.logo_url} alt="" style={{ height: 20, filter: "brightness(0) invert(1)" }} onError={(e) => e.target.style.display = "none"} />
+                        : <i className="mdi mdi-robot" style={{ color: "#fff", fontSize: 16 }}></i>}
                     </div>
-                    <div><div style={{ fontWeight: 600, fontSize: 13 }}>{bot.bot_name}</div><div style={{ fontSize: 11, color: "#6c757d" }}>{bot.bot_id}</div></div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{bot.bot_name}</div>
+                      <div style={{ fontSize: 11, color: "#6c757d" }}>{bot.bot_id}</div>
+                    </div>
+                    <Badge color={bot.is_active !== false ? "success" : "secondary"} style={{ fontSize: 9 }}>
+                      {bot.is_active !== false ? "Live" : "Off"}
+                    </Badge>
                   </div>
                   <div className="d-flex gap-2 mt-2">
-                    <span style={{ fontSize: 11, background: "#f1f3f7", borderRadius: 6, padding: "2px 8px" }}>📊 {bot.total_leads ?? 0} leads</span>
-                    <span style={{ fontSize: 11, background: "#f1f3f7", borderRadius: 6, padding: "2px 8px" }}>💬 {bot.total_conversations ?? 0} convs</span>
+                    <span style={{ fontSize: 11, background: "#f1f3f7", borderRadius: 6, padding: "2px 8px" }}>📊 {bot.total_leads ?? 0}</span>
+                    <span style={{ fontSize: 11, background: "#f1f3f7", borderRadius: 6, padding: "2px 8px" }}>💬 {bot.total_conversations ?? 0}</span>
                   </div>
                 </div>
               ))}
@@ -71,6 +110,7 @@ const AdminBots = ({ setBreadcrumbItems }) => {
           </Card>
         </Col>
 
+        {/* Bot Detail */}
         <Col xl={9}>
           {!selectedBot ? (
             <Card><CardBody className="text-center py-5 text-muted"><i className="mdi mdi-cursor-pointer font-size-36 d-block mb-2"></i>Select a bot from the left</CardBody></Card>
@@ -80,11 +120,36 @@ const AdminBots = ({ setBreadcrumbItems }) => {
                 <CardBody>
                   <div className="d-flex align-items-center gap-3">
                     <div style={{ width: 44, height: 44, borderRadius: 10, background: selectedBot.primary_color || "#008ed3", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      {selectedBot.logo_url ? <img src={selectedBot.logo_url} alt="" style={{ height: 28, filter: "brightness(0) invert(1)" }} onError={(e) => e.target.style.display = "none"} /> : <i className="mdi mdi-robot" style={{ color: "#fff", fontSize: 22 }}></i>}
+                      {selectedBot.logo_url
+                        ? <img src={selectedBot.logo_url} alt="" style={{ height: 28, filter: "brightness(0) invert(1)" }} onError={(e) => e.target.style.display = "none"} />
+                        : <i className="mdi mdi-robot" style={{ color: "#fff", fontSize: 22 }}></i>}
                     </div>
-                    <div><h5 className="mb-0">{selectedBot.bot_name}</h5><small className="text-muted">{selectedBot.company_name} — {selectedBot.bot_id}</small></div>
-                    <div className="ms-auto">
-                      <button className="btn btn-sm btn-outline-primary" onClick={() => setConfigModal(true)}><i className="mdi mdi-cog me-1"></i>Edit Config</button>
+                    <div>
+                      <h5 className="mb-0">{selectedBot.bot_name}</h5>
+                      <small className="text-muted">{selectedBot.company_name} — {selectedBot.bot_id}</small>
+                    </div>
+                    <div className="ms-auto d-flex gap-2 align-items-center">
+                      {/* Bot Status Toggle */}
+                      <div className="d-flex align-items-center gap-2 px-3 py-2" style={{ background: "#f8f9fa", borderRadius: 8 }}>
+                        <span style={{ fontSize: 13, color: "#445566" }}>Bot Status:</span>
+                        <div className="form-check form-switch mb-0" style={{ paddingLeft: 0 }}>
+                          <input className="form-check-input" type="checkbox"
+                            checked={selectedBot.is_active !== false}
+                            disabled={toggling === selectedBot.bot_id}
+                            onChange={() => handleToggle(selectedBot)}
+                            style={{ width: 44, height: 22, cursor: "pointer", accentColor: "#008ed3" }} />
+                        </div>
+                        <Badge color={selectedBot.is_active !== false ? "success" : "secondary"}>
+                          {toggling === selectedBot.bot_id ? "..." : selectedBot.is_active !== false ? "Live" : "Inactive"}
+                        </Badge>
+                      </div>
+                      <a href={`https://chitassist.vercel.app/?bot_id=${selectedBot.bot_id}`}
+                        target="_blank" rel="noreferrer" className="btn btn-sm btn-outline-success">
+                        <i className="mdi mdi-open-in-new me-1"></i>Preview
+                      </a>
+                      <button className="btn btn-sm btn-outline-primary" onClick={() => setConfigModal(true)}>
+                        <i className="mdi mdi-cog me-1"></i>Edit Config
+                      </button>
                     </div>
                   </div>
                 </CardBody>
@@ -94,8 +159,12 @@ const AdminBots = ({ setBreadcrumbItems }) => {
                 <CardBody>
                   <div className="d-flex justify-content-between align-items-center mb-3">
                     <Nav tabs>
-                      <NavItem><NavLink className={activeTab === "leads" ? "active" : ""} onClick={() => { setActiveTab("leads"); setSearch(""); }} style={{ cursor: "pointer" }}>Leads <Badge color="primary" className="ms-1">{leads.length}</Badge></NavLink></NavItem>
-                      <NavItem><NavLink className={activeTab === "conversations" ? "active" : ""} onClick={() => { setActiveTab("conversations"); setSearch(""); }} style={{ cursor: "pointer" }}>Conversations <Badge color="info" className="ms-1">{conversations.length}</Badge></NavLink></NavItem>
+                      <NavItem><NavLink className={activeTab === "leads" ? "active" : ""} onClick={() => { setActiveTab("leads"); setSearch(""); }} style={{ cursor: "pointer" }}>
+                        Leads <Badge color="primary" className="ms-1">{leads.length}</Badge>
+                      </NavLink></NavItem>
+                      <NavItem><NavLink className={activeTab === "conversations" ? "active" : ""} onClick={() => { setActiveTab("conversations"); setSearch(""); }} style={{ cursor: "pointer" }}>
+                        Conversations <Badge color="info" className="ms-1">{conversations.length}</Badge>
+                      </NavLink></NavItem>
                     </Nav>
                     <Input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 200 }} />
                   </div>
@@ -107,7 +176,8 @@ const AdminBots = ({ setBreadcrumbItems }) => {
                           <table className="table table-centered table-hover table-nowrap mb-0">
                             <thead className="table-light"><tr><th>#</th><th>Serial</th>{allKeys.map((k) => <th key={k} style={{ textTransform: "capitalize" }}>{k}</th>)}<th>Date</th><th>Webhook</th></tr></thead>
                             <tbody>
-                              {filteredLeads.length === 0 ? <tr><td colSpan={allKeys.length + 4} className="text-center text-muted py-4">No leads yet</td></tr>
+                              {filteredLeads.length === 0
+                                ? <tr><td colSpan={allKeys.length + 4} className="text-center text-muted py-4">No leads yet</td></tr>
                                 : filteredLeads.map((lead, i) => (
                                   <tr key={i}>
                                     <td>{i + 1}</td>
@@ -128,7 +198,8 @@ const AdminBots = ({ setBreadcrumbItems }) => {
                           <table className="table table-centered table-hover table-nowrap mb-0">
                             <thead className="table-light"><tr><th>#</th><th>Session ID</th><th>Messages</th><th>Started</th><th>Action</th></tr></thead>
                             <tbody>
-                              {filteredConvs.length === 0 ? <tr><td colSpan={5} className="text-center text-muted py-4">No conversations yet</td></tr>
+                              {filteredConvs.length === 0
+                                ? <tr><td colSpan={5} className="text-center text-muted py-4">No conversations yet</td></tr>
                                 : filteredConvs.map((conv, i) => (
                                   <tr key={i}>
                                     <td>{i + 1}</td>
