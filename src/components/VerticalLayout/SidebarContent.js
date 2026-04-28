@@ -12,6 +12,8 @@ const getAuthUser = () => {
 
 const API_URL = process.env.REACT_APP_API_URL || "https://chitassistant.onrender.com";
 
+const PLAN_COLORS = { Starter: "#6c757d", Pro: "#008ed3", Enterprise: "#5b3cc4", Custom: "#f1b44c" };
+
 const SidebarContent = props => {
   const ref = useRef()
   const user = getAuthUser()
@@ -19,7 +21,6 @@ const SidebarContent = props => {
   const botId = user.bot_id
   const [newLeadsCount, setNewLeadsCount] = useState(0)
 
-  // Fetch today's lead count for badge
   useEffect(() => {
     if (!isSuperuser && botId) {
       fetch(`${API_URL}/api/client/stats/enhanced/?bot_id=${botId}`, {
@@ -103,6 +104,9 @@ const SidebarContent = props => {
     if (item) { const cur = item.offsetTop; if (cur > window.innerHeight) ref.current.getScrollElement().scrollTop = cur - 300 }
   }
 
+  const currentPlan = user.plan_name || "Starter";
+  const planColor = PLAN_COLORS[currentPlan] || "#6c757d";
+
   return (
     <React.Fragment>
       <SimpleBar style={{ maxHeight: "100%" }} ref={ref}>
@@ -133,7 +137,7 @@ const SidebarContent = props => {
                     <span>Leads</span>
                     {newLeadsCount > 0 && (
                       <span style={{ marginLeft: "auto", background: "#f46a6a", color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: 11, fontWeight: 700 }}>
-                        {newLeadsCount} today
+                        {newLeadsCount}
                       </span>
                     )}
                   </Link>
@@ -146,6 +150,17 @@ const SidebarContent = props => {
             )}
 
             <li className="menu-title" style={{ color: "#008ed3", fontSize: 10, letterSpacing: 1 }}>ACCOUNT</li>
+            {!isSuperuser && (
+              <li>
+                <Link to="/my-plan" className="waves-effect">
+                  <i className="mdi mdi-crown" style={{ color: planColor }}></i>
+                  <span>My Plan</span>
+                  <span style={{ marginLeft: "auto", background: planColor, color: "#fff", borderRadius: 10, padding: "1px 8px", fontSize: 10, fontWeight: 700 }}>
+                    {currentPlan}
+                  </span>
+                </Link>
+              </li>
+            )}
             <li><Link to="/change-password" className="waves-effect"><i className="mdi mdi-lock-reset"></i><span>Change Password</span></Link></li>
             <li><Link to="/logout" className="waves-effect"><i className="mdi mdi-logout"></i><span>Logout</span></Link></li>
           </ul>

@@ -18,6 +18,7 @@ import AdminBots from "../pages/AdminBots/index"
 import UserManagement from "../pages/UserManagement/index"
 import CreateBot from "../pages/CreateBot/index"
 import ChangePassword from "../pages/ChangePassword/index"
+import MyPlan from "../pages/MyPlan/index"
 
 import Pages404 from "../pages/Extra Pages/pages-404"
 import Pages500 from "../pages/Extra Pages/pages-500"
@@ -31,6 +32,7 @@ const userRoutes = [
   { path: "/users",           component: <UserManagement /> },
   { path: "/create-bot",      component: <CreateBot /> },
   { path: "/change-password", component: <ChangePassword /> },
+  { path: "/my-plan",         component: <MyPlan /> },
   { path: "/", exact: true,   component: <Navigate to="/dashboard" /> },
 ]
 
