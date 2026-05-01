@@ -14,11 +14,15 @@ export const updateBotConfig = (data) => post(url.UPDATE_BOT_CONFIG, data);
 export const getConversationHistory = (sessionId, botId) =>
   get(`${url.GET_CONVERSATION_HISTORY}?session_id=${sessionId}&bot_id=${botId}`);
 export const getAdminAllBots = () => get(url.GET_ADMIN_ALL_BOTS);
-export const createBot = (data) => post("/api/admin/bots/create/", data);
+export const createBot = (data) => post(url.CREATE_BOT, data);
 export const getAdminUsers = () => get(url.GET_ADMIN_USERS);
 export const createUser = (data) => post(url.GET_ADMIN_USERS, data);
-export const updateUser = (id, data) => post(`${url.ADMIN_USER_DETAIL}${id}/`, { ...data, _method: 'PATCH' });
-export const deleteUser = (id) => post(`${url.ADMIN_USER_DETAIL}${id}/delete/`, {});
+
+// Client bot creation (within quota)
+export const clientCreateBot = (data) => post("/api/client/bots/create/", data);
+
+// Plan upgrade request
+export const requestPlanUpgrade = (data) => post("/api/client/plan/upgrade/", data);
 
 export const postJwtRegister = (data) => post(url.POST_JWT_LOGIN, data);
 export const postJwtForgetPwd = (data) => post(url.POST_JWT_LOGIN, data);
