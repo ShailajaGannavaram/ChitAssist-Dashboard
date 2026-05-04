@@ -4,49 +4,165 @@ import { Row, Col, Card, CardBody, Badge, Alert, Input } from "reactstrap";
 import { setBreadcrumbItems } from "../../store/actions";
 import { requestPlanUpgrade } from "../../helpers/fakebackend_helper";
 
+const API_URL = process.env.REACT_APP_API_URL || "https://chitassistant.onrender.com";
+const RAZORPAY_KEY_ID = "rzp_test_SlAuqIaSG0ZtRw";
+
 const getAuthUser = () => {
   try { return JSON.parse(localStorage.getItem("authUser") || "{}"); } catch { return {}; }
 };
 
+const getToken = () => {
+  try { return JSON.parse(localStorage.getItem("authUser") || "{}").access || ""; } catch { return ""; }
+};
+
 const PLANS = [
   {
-    name: "Starter", price: "₹1,999", period: "/month", bots: 1, color: "#6c757d",
+    name: "Starter", price: "₹1,999", amount: 199900, period: "/month", bots: 1, color: "#6c757d",
     features: ["1 Chatbot", "Unlimited Leads", "Conversation History", "Basic Analytics", "Email Support", "Embed Code"],
   },
   {
-    name: "Pro", price: "₹4,999", period: "/month", bots: 3, color: "#008ed3", popular: true,
+    name: "Pro", price: "₹4,999", amount: 499900, period: "/month", bots: 3, color: "#008ed3", popular: true,
     features: ["3 Chatbots", "Unlimited Leads", "Conversation History", "Advanced Analytics", "Webhook Integration", "Priority Support", "Custom Flow Steps", "Embed Code"],
   },
   {
-    name: "Enterprise", price: "₹9,999", period: "/month", bots: 10, color: "#5b3cc4",
+    name: "Enterprise", price: "₹9,999", amount: 999900, period: "/month", bots: 10, color: "#5b3cc4",
     features: ["10 Chatbots", "Unlimited Leads", "Full History", "Advanced Analytics", "Webhook + API", "Dedicated Support", "Custom Branding", "Embed Code", "SLA Guarantee"],
   },
   {
-    name: "Custom", price: "Contact Us", period: "", bots: "Unlimited", color: "#f1b44c",
+    name: "Custom", price: "Contact Us", amount: null, period: "", bots: "Unlimited", color: "#f1b44c",
     features: ["Unlimited Chatbots", "Custom Features", "White-label Option", "API Access", "Dedicated Manager", "Custom Integrations"],
   },
 ];
 
+// Load Razorpay script dynamically
+const loadRazorpay = () => {
+  return new Promise((resolve) => {
+    if (window.Razorpay) { resolve(true); return; }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 const MyPlan = ({ setBreadcrumbItems }) => {
   const user = getAuthUser();
-  const [loading, setLoading] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [requestLoading, setRequestLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [showMessageFor, setShowMessageFor] = useState(null);
   const [message, setMessage] = useState("");
+  const [currentPlan, setCurrentPlan] = useState(user.plan_name || "Starter");
+  const [botQuota, setBotQuota] = useState(user.bot_quota || 1);
 
-  const currentPlan = user.plan_name || "Starter";
-  const botQuota = user.bot_quota || 1;
   const botsUsed = user.all_user_bots?.length || 1;
 
   document.title = "My Plan | ChitAssist Dashboard";
 
   useEffect(() => {
-    setBreadcrumbItems("My Plan", [{ title: "Dashboard", link: "/dashboard" }, { title: "My Plan", link: "#" }]);
+    setBreadcrumbItems("My Plan", [
+      { title: "Dashboard", link: "/dashboard" },
+      { title: "My Plan", link: "#" },
+    ]);
   }, []); // eslint-disable-line
 
+  const handlePayment = async (plan) => {
+    setPaymentLoading(true); setError(""); setSuccess("");
+
+    // Load Razorpay script
+    const loaded = await loadRazorpay();
+    if (!loaded) {
+      setError("Could not load payment gateway. Please check your internet connection.");
+      setPaymentLoading(false); return;
+    }
+
+    try {
+      // Step 1: Create order on Django backend
+      const orderRes = await fetch(`${API_URL}/api/client/payment/create-order/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ plan_name: plan.name }),
+      });
+      const orderData = await orderRes.json();
+
+      if (!orderRes.ok) {
+        setError(orderData.error || "Failed to initiate payment.");
+        setPaymentLoading(false); return;
+      }
+
+      // Step 2: Open Razorpay checkout
+      const options = {
+        key: RAZORPAY_KEY_ID,
+        amount: orderData.amount,
+        currency: "INR",
+        name: "Ants Digital",
+        description: `${plan.name} Plan — ${plan.price}/month`,
+        image: "https://antsdigital.in/assets/images/antslogo.png",
+        order_id: orderData.order_id,
+        prefill: {
+          name: user.username || "",
+          email: user.email || "",
+        },
+        theme: { color: "#008ed3" },
+        modal: {
+          ondismiss: () => {
+            setPaymentLoading(false);
+            setError("Payment cancelled.");
+          }
+        },
+        handler: async (response) => {
+          // Step 3: Verify payment on Django backend
+          try {
+            const verifyRes = await fetch(`${API_URL}/api/client/payment/verify/`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                plan_name: plan.name,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+
+            if (verifyData.success) {
+              setCurrentPlan(verifyData.plan_name);
+              setBotQuota(verifyData.bot_quota);
+              setSuccess(`🎉 Payment successful! Your plan has been upgraded to ${verifyData.plan_name}. A confirmation email has been sent to ${user.email}. Please log out and log back in to see updated quota.`);
+
+              // Update localStorage so sidebar shows new plan
+              const authUser = JSON.parse(localStorage.getItem("authUser") || "{}");
+              authUser.plan_name = verifyData.plan_name;
+              authUser.bot_quota = verifyData.bot_quota;
+              localStorage.setItem("authUser", JSON.stringify(authUser));
+            } else {
+              setError(verifyData.error || "Payment verification failed.");
+            }
+          } catch {
+            setError("Payment was received but verification failed. Please contact support with Payment ID: " + response.razorpay_payment_id);
+          } finally {
+            setPaymentLoading(false);
+          }
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (response) => {
+        setError(`Payment failed: ${response.error.description}`);
+        setPaymentLoading(false);
+      });
+      rzp.open();
+
+    } catch {
+      setError("Could not connect to server. Please try again.");
+      setPaymentLoading(false);
+    }
+  };
+
   const handleRequest = async (planName) => {
-    setLoading(true); setError(""); setSuccess("");
+    setRequestLoading(true); setError(""); setSuccess("");
     try {
       const data = await requestPlanUpgrade({ requested_plan: planName, message });
       if (data.success) {
@@ -56,9 +172,9 @@ const MyPlan = ({ setBreadcrumbItems }) => {
         setError(data.error || "Failed to send request.");
       }
     } catch (err) {
-      setError(err?.response?.data?.error || "Could not connect. Please try again.");
+      setError("Could not connect. Please try again.");
     } finally {
-      setLoading(false);
+      setRequestLoading(false);
     }
   };
 
@@ -120,11 +236,18 @@ const MyPlan = ({ setBreadcrumbItems }) => {
       {success && <Alert color="success" className="mb-4"><i className="mdi mdi-check-circle me-2"></i>{success}</Alert>}
       {error && <Alert color="danger" className="mb-4">{error}</Alert>}
 
+      {/* Test mode notice */}
+      <div style={{ background: "#fff3cd", border: "1px solid #ffc107", borderRadius: 8, padding: "10px 16px", marginBottom: 20, fontSize: 13, color: "#856404" }}>
+        <i className="mdi mdi-information-outline me-2"></i>
+        <strong>Test Mode:</strong> Use card number <strong>4111 1111 1111 1111</strong>, any future expiry, CVV <strong>123</strong> to test payment.
+      </div>
+
       <h5 className="mb-4">Available Plans</h5>
       <Row>
         {PLANS.map((plan) => {
           const isCurrent = isCurrentPlan(plan.name);
           const canUpgrade = isUpgrade(plan.name);
+
           return (
             <Col xl={3} md={6} key={plan.name} className="mb-4">
               <Card style={{ border: `2px solid ${isCurrent ? plan.color : "#e9ecef"}`, borderRadius: 14, height: "100%", position: "relative", boxShadow: plan.popular ? `0 8px 24px ${plan.color}33` : "none" }}>
@@ -154,6 +277,7 @@ const MyPlan = ({ setBreadcrumbItems }) => {
                       </Badge>
                     </div>
                   </div>
+
                   <ul style={{ listStyle: "none", padding: 0, margin: "0 0 20px", flex: 1 }}>
                     {plan.features.map((f, i) => (
                       <li key={i} style={{ padding: "5px 0", fontSize: 13, color: "#445566", display: "flex", alignItems: "center", gap: 8 }}>
@@ -161,27 +285,45 @@ const MyPlan = ({ setBreadcrumbItems }) => {
                       </li>
                     ))}
                   </ul>
+
+                  {/* Action buttons */}
                   {isCurrent ? (
-                    <button disabled className="btn w-100" style={{ background: "#f8f9fa", color: "#6c757d", border: "1px solid #dee2e6", borderRadius: 8 }}>Current Plan</button>
+                    <button disabled className="btn w-100" style={{ background: "#f8f9fa", color: "#6c757d", border: "1px solid #dee2e6", borderRadius: 8 }}>
+                      Current Plan
+                    </button>
                   ) : !canUpgrade ? (
-                    <button disabled className="btn w-100" style={{ background: "#f8f9fa", color: "#adb5bd", border: "1px solid #dee2e6", borderRadius: 8, fontSize: 13 }}>Lower Plan</button>
-                  ) : showMessageFor === plan.name ? (
-                    <div>
-                      <Input type="textarea" rows={2} placeholder="Any message? (optional)" value={message}
-                        onChange={(e) => setMessage(e.target.value)} style={{ borderRadius: 8, fontSize: 13, marginBottom: 8 }} />
-                      <div className="d-flex gap-2">
-                        <button className="btn btn-sm btn-outline-secondary flex-fill" onClick={() => { setShowMessageFor(null); setMessage(""); }}>Cancel</button>
-                        <button className="btn btn-sm flex-fill" disabled={loading}
-                          style={{ background: plan.color, color: "#fff", border: "none", borderRadius: 6 }}
-                          onClick={() => handleRequest(plan.name)}>
-                          {loading ? <><span className="spinner-border spinner-border-sm me-1"></span>Sending...</> : "Send Request"}
-                        </button>
+                    <button disabled className="btn w-100" style={{ background: "#f8f9fa", color: "#adb5bd", border: "1px solid #dee2e6", borderRadius: 8, fontSize: 13 }}>
+                      Lower Plan
+                    </button>
+                  ) : plan.name === "Custom" ? (
+                    // Custom plan — request only, no payment
+                    showMessageFor === plan.name ? (
+                      <div>
+                        <Input type="textarea" rows={2} placeholder="Tell us your requirements..." value={message}
+                          onChange={(e) => setMessage(e.target.value)} style={{ borderRadius: 8, fontSize: 13, marginBottom: 8 }} />
+                        <div className="d-flex gap-2">
+                          <button className="btn btn-sm btn-outline-secondary flex-fill" onClick={() => { setShowMessageFor(null); setMessage(""); }}>Cancel</button>
+                          <button className="btn btn-sm flex-fill" disabled={requestLoading}
+                            style={{ background: plan.color, color: "#fff", border: "none", borderRadius: 6 }}
+                            onClick={() => handleRequest(plan.name)}>
+                            {requestLoading ? <><span className="spinner-border spinner-border-sm me-1"></span>Sending...</> : "Contact Sales"}
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <button className="btn w-100" style={{ background: plan.color, color: "#fff", border: "none", borderRadius: 8, fontWeight: 600 }}
+                        onClick={() => setShowMessageFor(plan.name)}>
+                        Contact Sales →
+                      </button>
+                    )
                   ) : (
-                    <button className="btn w-100" style={{ background: plan.color, color: "#fff", border: "none", borderRadius: 8, fontWeight: 600 }}
-                      onClick={() => setShowMessageFor(plan.name)}>
-                      {plan.name === "Custom" ? "Contact Sales" : "Request Upgrade"} →
+                    // Starter/Pro/Enterprise — Razorpay payment
+                    <button className="btn w-100" disabled={paymentLoading}
+                      style={{ background: plan.color, color: "#fff", border: "none", borderRadius: 8, fontWeight: 600 }}
+                      onClick={() => handlePayment(plan)}>
+                      {paymentLoading
+                        ? <><span className="spinner-border spinner-border-sm me-2"></span>Processing...</>
+                        : <><i className="mdi mdi-credit-card me-1"></i>Pay {plan.price}</>}
                     </button>
                   )}
                 </CardBody>
@@ -191,18 +333,19 @@ const MyPlan = ({ setBreadcrumbItems }) => {
         })}
       </Row>
 
+      {/* FAQ */}
       <Row className="mt-2">
         <Col xl={12}>
           <Card><CardBody>
             <h6 className="mb-3">Frequently Asked Questions</h6>
             <Row>
               <Col xl={6}>
-                <p style={{ fontSize: 13 }}><strong>How does upgrade work?</strong><br />Click "Request Upgrade", add an optional message, and submit. Our team will process within 24 hours and email you confirmation.</p>
-                <p style={{ fontSize: 13 }}><strong>Will I lose my data?</strong><br />No. All leads, conversations, and bot config are preserved.</p>
+                <p style={{ fontSize: 13 }}><strong>Is the payment secure?</strong><br />Yes. All payments are processed by Razorpay, a PCI DSS compliant payment gateway. We never store your card details.</p>
+                <p style={{ fontSize: 13 }}><strong>When does my plan upgrade?</strong><br />Immediately after successful payment. Your bot quota updates instantly and a confirmation email is sent.</p>
               </Col>
               <Col xl={6}>
-                <p style={{ fontSize: 13 }}><strong>Can I add more bots after upgrading?</strong><br />Yes. Once upgraded, you can create new bots directly from your dashboard.</p>
-                <p style={{ fontSize: 13 }}><strong>Need custom plan?</strong><br />Contact <a href="mailto:gannavaram.shailaja@antsdigital.in">gannavaram.shailaja@antsdigital.in</a></p>
+                <p style={{ fontSize: 13 }}><strong>Will I lose my data?</strong><br />No. All existing leads, conversations, and bot configuration are preserved.</p>
+                <p style={{ fontSize: 13 }}><strong>Need a custom plan?</strong><br />Click "Contact Sales" on the Custom plan or email <a href="mailto:gannavaram.shailaja@antsdigital.in">gannavaram.shailaja@antsdigital.in</a></p>
               </Col>
             </Row>
           </CardBody></Card>
