@@ -5,7 +5,7 @@ import { setBreadcrumbItems } from "../../store/actions";
 import { requestPlanUpgrade } from "../../helpers/fakebackend_helper";
 
 const API_URL = process.env.REACT_APP_API_URL || "https://chitassistant.onrender.com";
-const RAZORPAY_KEY_ID = "rzp_test_SlAuqIaSG0ZtRw";
+const RAZORPAY_KEY_ID = "rzp_test_SlYHYu7TAKgqq2";
 
 const getAuthUser = () => {
   try { return JSON.parse(localStorage.getItem("authUser") || "{}"); } catch { return {}; }
