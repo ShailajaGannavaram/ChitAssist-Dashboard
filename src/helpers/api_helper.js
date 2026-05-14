@@ -28,11 +28,10 @@ export async function get(url, config = {}) {
 }
 
 export async function post(url, data, config = {}) {
-  return axiosApi.post(url, { ...data }, { ...config }).then((response) => response.data);
+  return axiosApi.post(url, data, { ...config }).then((response) => response.data);
 }
-
 export async function put(url, data, config = {}) {
-  return axiosApi.put(url, { ...data }, { ...config }).then((response) => response.data);
+  return axiosApi.put(url, data, { ...config }).then((response) => response.data);
 }
 
 export async function del(url, config = {}) {

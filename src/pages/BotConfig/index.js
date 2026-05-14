@@ -10,7 +10,8 @@ const getAuthUser = () => {
 const BotConfig = ({ setBreadcrumbItems, botId: propBotId }) => {
   const dispatch = useDispatch();
   const user = getAuthUser();
-  const botId = propBotId || user.bot_id || "margadarsi";
+  const allUserBots = user.all_bots || user.all_user_bots || [];
+  const [botId, setBotIdLocal] = useState(propBotId || user.bot_id || (allUserBots[0]?.bot_id) || "margadarsi");
   const [activeTab, setActiveTab] = useState("1");
   const [form, setForm] = useState(null);
   const [dirty, setDirty] = useState(false);
@@ -73,6 +74,36 @@ const BotConfig = ({ setBreadcrumbItems, botId: propBotId }) => {
     setTimeout(() => setEmbedCopied(""), 2000);
   };
 
+  // ── Flow step helpers ─────────────────────────────────────────────
+  const updateStep = (i, field, value) => {
+    const steps = [...flowSteps];
+    steps[i] = { ...steps[i], [field]: value };
+    set("flow_steps", steps);
+  };
+
+  const addCondition = (stepIndex) => {
+    const steps = [...flowSteps];
+    const conditions = [...(steps[stepIndex].conditions || [])];
+    conditions.push({ if_answer: "", goto_step: "" });
+    steps[stepIndex] = { ...steps[stepIndex], conditions };
+    set("flow_steps", steps);
+  };
+
+  const updateCondition = (stepIndex, condIndex, field, value) => {
+    const steps = [...flowSteps];
+    const conditions = [...(steps[stepIndex].conditions || [])];
+    conditions[condIndex] = { ...conditions[condIndex], [field]: value };
+    steps[stepIndex] = { ...steps[stepIndex], conditions };
+    set("flow_steps", steps);
+  };
+
+  const removeCondition = (stepIndex, condIndex) => {
+    const steps = [...flowSteps];
+    const conditions = (steps[stepIndex].conditions || []).filter((_, j) => j !== condIndex);
+    steps[stepIndex] = { ...steps[stepIndex], conditions };
+    set("flow_steps", steps);
+  };
+
   const tabs = ["Basic Info", "Appearance", "Welcome Card", "Flow Steps", "Quick Suggestions", "Webhook & API", "Embed & Share"];
 
   return (
@@ -86,10 +117,28 @@ const BotConfig = ({ setBreadcrumbItems, botId: propBotId }) => {
                 <div>
                   <h4 className="mb-1">{form.bot_name}</h4>
                   <p className="text-muted mb-0">{form.company_name} — <Badge color="secondary">{botId}</Badge></p>
+                  {allUserBots.length > 1 && (
+                    <div className="d-flex align-items-center gap-2 mt-2">
+                      <small className="text-muted">Switch Bot:</small>
+                      <Input type="select" value={botId}
+                      onChange={(e) => {
+                        setBotIdLocal(e.target.value);
+                        setForm(null);
+                        setDirty(false);
+                        dispatch(fetchBotConfig(e.target.value));
+                      }}
+                      style={{ fontSize: 13, width: "auto", minWidth: 180 }}>
+                      {allUserBots.map((b) => (
+                        <option key={b.bot_id} value={b.bot_id}>
+                          {b.bot_name} ({b.bot_id})
+                        </option>
+                      ))}
+                      </Input>
+                    </div>
+                  )}
                 </div>
                 <div className="ms-auto d-flex gap-2 align-items-center">
-                  <a href={chatbotUrl} target="_blank" rel="noreferrer"
-                    className="btn btn-sm btn-outline-primary">
+                  <a href={chatbotUrl} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline-primary">
                     <i className="mdi mdi-open-in-new me-1"></i>Preview Bot
                   </a>
                   {dirty && <span className="text-warning" style={{ fontSize: 13 }}><i className="mdi mdi-circle-medium"></i> Unsaved changes</span>}
@@ -177,55 +226,150 @@ const BotConfig = ({ setBreadcrumbItems, botId: propBotId }) => {
                   </Row>
                 </TabPane>
 
-                {/* Tab 4: Flow Steps */}
+                {/* Tab 4: Flow Steps — with API + Conditions */}
                 <TabPane tabId="4">
                   <div className="d-flex justify-content-between align-items-center mb-3">
-                    <div><h6 className="mb-1">Conversation Flow Steps</h6><p className="text-muted mb-0" style={{ fontSize: 13 }}>Questions the bot asks users in order.</p></div>
+                    <div>
+                      <h6 className="mb-1">Conversation Flow Steps</h6>
+                      <p className="text-muted mb-0" style={{ fontSize: 13 }}>Questions the bot asks in order. Each step can have dynamic API options and conditional routing.</p>
+                    </div>
                     <button className="btn btn-sm btn-success" onClick={() => {
-                      set("flow_steps", [...flowSteps, { order: flowSteps.length + 1, question: "New question", field_name: "new_field", field_type: "text", is_required: false, options: [] }]);
+                      set("flow_steps", [...flowSteps, { order: flowSteps.length + 1, question: "New question", field_name: "new_field", field_type: "text", is_required: false, options: [], data_source: "static", api_endpoint: "", api_response_path: "", depends_on_field: "", conditions: [] }]);
                     }}><i className="mdi mdi-plus me-1"></i>Add Step</button>
                   </div>
-                  {flowSteps.length === 0
-                    ? <div className="text-center text-muted py-5"><i className="mdi mdi-format-list-numbered font-size-36 d-block mb-2"></i>No flow steps yet.</div>
-                    : flowSteps.map((step, i) => (
-                      <div key={i} style={{ border: "1px solid #e9ecef", borderRadius: 10, padding: "14px 18px", marginBottom: 10 }}>
-                        <Row className="align-items-center">
-                          <Col xs="auto">
-                            <div style={{ width: 34, height: 34, borderRadius: "50%", background: form.primary_color || "#556ee6", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>{step.order}</div>
-                          </Col>
-                          <Col>
-                            <Input value={step.question} placeholder="Question text" className="mb-2"
-                              onChange={(e) => { const s = [...flowSteps]; s[i] = { ...s[i], question: e.target.value }; set("flow_steps", s); }} />
-                            <Row>
-                              <Col xl={4}><Input value={step.field_name} placeholder="field_name"
-                                onChange={(e) => { const s = [...flowSteps]; s[i] = { ...s[i], field_name: e.target.value }; set("flow_steps", s); }} /></Col>
-                              <Col xl={4}><Input type="select" value={step.field_type}
-                                onChange={(e) => { const s = [...flowSteps]; s[i] = { ...s[i], field_type: e.target.value }; set("flow_steps", s); }}>
-                                {Object.entries(FIELD_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                              </Input></Col>
-                              <Col xl={4}>
-                                <div className="d-flex align-items-center gap-2">
-                                  <input type="checkbox" checked={!!step.is_required}
-                                    onChange={(e) => { const s = [...flowSteps]; s[i] = { ...s[i], is_required: e.target.checked }; set("flow_steps", s); }} />
-                                  <small>Required</small>
-                                  <button className="btn btn-sm btn-outline-danger ms-auto"
-                                    onClick={() => set("flow_steps", flowSteps.filter((_, j) => j !== i).map((st, j) => ({ ...st, order: j + 1 })))}>
-                                    <i className="mdi mdi-delete"></i>
-                                  </button>
-                                </div>
-                              </Col>
-                            </Row>
-                            {(step.field_type === "options" || step.field_type === "multi_options") && (
-                              <div className="mt-2">
-                                <small className="text-muted">Options (comma separated):</small>
-                                <Input value={(step.options || []).join(", ")} placeholder="Option 1, Option 2"
-                                  onChange={(e) => { const s = [...flowSteps]; s[i] = { ...s[i], options: e.target.value.split(",").map(o => o.trim()).filter(Boolean) }; set("flow_steps", s); }} />
-                              </div>
-                            )}
-                          </Col>
-                        </Row>
+
+                  {flowSteps.length === 0 ? (
+                    <div className="text-center text-muted py-5"><i className="mdi mdi-format-list-numbered font-size-36 d-block mb-2"></i>No flow steps yet.</div>
+                  ) : flowSteps.map((step, i) => (
+                    <div key={i} style={{ border: "1px solid #e9ecef", borderRadius: 12, padding: "16px 20px", marginBottom: 14, background: "#fff" }}>
+                      {/* Step header */}
+                      <div className="d-flex align-items-center gap-3 mb-3">
+                        <div style={{ width: 34, height: 34, borderRadius: "50%", background: form.primary_color || "#556ee6", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, flexShrink: 0 }}>
+                          {step.order}
+                        </div>
+                        <Input value={step.question} placeholder="Question text" style={{ flex: 1, fontWeight: 500 }}
+                          onChange={(e) => updateStep(i, "question", e.target.value)} />
+                        <button className="btn btn-sm btn-outline-danger"
+                          onClick={() => set("flow_steps", flowSteps.filter((_, j) => j !== i).map((st, j) => ({ ...st, order: j + 1 })))}>
+                          <i className="mdi mdi-delete"></i>
+                        </button>
                       </div>
-                    ))}
+
+                      <Row className="mb-2">
+                        <Col xl={3}>
+                          <Label style={{ fontSize: 12 }}>Field Name</Label>
+                          <Input value={step.field_name} placeholder="e.g. city"
+                            onChange={(e) => updateStep(i, "field_name", e.target.value)} />
+                        </Col>
+                        <Col xl={3}>
+                          <Label style={{ fontSize: 12 }}>Field Type</Label>
+                          <Input type="select" value={step.field_type}
+                            onChange={(e) => updateStep(i, "field_type", e.target.value)}>
+                            {Object.entries(FIELD_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                          </Input>
+                        </Col>
+                        <Col xl={3}>
+                          <Label style={{ fontSize: 12 }}>Data Source</Label>
+                          <Input type="select" value={step.data_source || "static"}
+                            onChange={(e) => updateStep(i, "data_source", e.target.value)}>
+                            <option value="static">Static Options</option>
+                            <option value="api">Dynamic API</option>
+                          </Input>
+                        </Col>
+                        <Col xl={3}>
+                          <Label style={{ fontSize: 12 }}>Required</Label>
+                          <div className="d-flex align-items-center gap-2 mt-2">
+                            <input type="checkbox" checked={!!step.is_required}
+                              onChange={(e) => updateStep(i, "is_required", e.target.checked)} />
+                            <small>Required field</small>
+                          </div>
+                        </Col>
+                      </Row>
+
+                      {/* Static options */}
+                      {(step.field_type === "options" || step.field_type === "multi_options") && step.data_source !== "api" && (
+                        <div className="mb-2">
+                          <Label style={{ fontSize: 12 }}>Options <small className="text-muted">(comma separated)</small></Label>
+                          <Input value={(step.options || []).join(", ")} placeholder="Option 1, Option 2, Option 3"
+                            onChange={(e) => updateStep(i, "options", e.target.value.split(",").map(o => o.trim()).filter(Boolean))} />
+                        </div>
+                      )}
+
+                      {/* Dynamic API settings */}
+                      {step.data_source === "api" && (
+                        <div style={{ background: "#f0f7ff", border: "1px solid #cce0ff", borderRadius: 8, padding: "12px 16px", marginBottom: 8 }}>
+                          <div className="d-flex align-items-center gap-2 mb-2">
+                            <i className="mdi mdi-api" style={{ color: "#008ed3" }}></i>
+                            <strong style={{ fontSize: 13, color: "#008ed3" }}>Dynamic API Settings</strong>
+                          </div>
+                          <Row>
+                            <Col xl={6}>
+                              <Label style={{ fontSize: 12 }}>API Endpoint URL</Label>
+                              <Input value={step.api_endpoint || ""} placeholder="https://api.example.com/cities?state={prev}"
+                                onChange={(e) => updateStep(i, "api_endpoint", e.target.value)} />
+                              <small className="text-muted">Use <code>{"{prev}"}</code> to pass previous step's answer</small>
+                            </Col>
+                            <Col xl={3}>
+                              <Label style={{ fontSize: 12 }}>Response Path</Label>
+                              <Input value={step.api_response_path || ""} placeholder="e.g. data.cities"
+                                onChange={(e) => updateStep(i, "api_response_path", e.target.value)} />
+                              <small className="text-muted">Dot path to list in response</small>
+                            </Col>
+                            <Col xl={3}>
+                              <Label style={{ fontSize: 12 }}>Depends On Field</Label>
+                              <Input type="select" value={step.depends_on_field || ""}
+                                onChange={(e) => updateStep(i, "depends_on_field", e.target.value)}>
+                                <option value="">— None —</option>
+                                {flowSteps.filter((_, j) => j < i).map((s) => (
+                                  <option key={s.field_name} value={s.field_name}>{s.field_name} (Step {s.order})</option>
+                                ))}
+                              </Input>
+                              <small className="text-muted">Whose answer to pass as {"{prev}"}</small>
+                            </Col>
+                          </Row>
+                        </div>
+                      )}
+
+                      {/* Conditions */}
+                      <div style={{ background: "#fffbf0", border: "1px solid #ffe58f", borderRadius: 8, padding: "12px 16px" }}>
+                        <div className="d-flex align-items-center justify-content-between mb-2">
+                          <div className="d-flex align-items-center gap-2">
+                            <i className="mdi mdi-source-branch" style={{ color: "#d48806" }}></i>
+                            <strong style={{ fontSize: 13, color: "#d48806" }}>Conditional Routing</strong>
+                            <small className="text-muted">(optional — skip to specific step based on answer)</small>
+                          </div>
+                          <button className="btn btn-sm" style={{ background: "#ffc107", color: "#000", border: "none", fontSize: 11 }}
+                            onClick={() => addCondition(i)}>
+                            <i className="mdi mdi-plus me-1"></i>Add Condition
+                          </button>
+                        </div>
+
+                        {(!step.conditions || step.conditions.length === 0) ? (
+                          <small className="text-muted">No conditions — bot will proceed to next step in order.</small>
+                        ) : (
+                          step.conditions.map((cond, ci) => (
+                            <div key={ci} className="d-flex align-items-center gap-2 mb-2">
+                              <small style={{ color: "#666", whiteSpace: "nowrap" }}>If answer is</small>
+                              <Input value={cond.if_answer} placeholder="e.g. Hyderabad" style={{ width: 160 }}
+                                onChange={(e) => updateCondition(i, ci, "if_answer", e.target.value)} />
+                              <small style={{ color: "#666", whiteSpace: "nowrap" }}>→ go to Step</small>
+                              <Input type="select" value={cond.goto_step || ""} style={{ width: 120 }}
+                                onChange={(e) => updateCondition(i, ci, "goto_step", parseInt(e.target.value))}>
+                                <option value="">— Select —</option>
+                                {flowSteps.filter((_, j) => j !== i).map((s) => (
+                                  <option key={s.order} value={s.order}>Step {s.order}: {s.field_name}</option>
+                                ))}
+                              </Input>
+                              <button className="btn btn-sm btn-outline-danger" onClick={() => removeCondition(i, ci)}>
+                                <i className="mdi mdi-close"></i>
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
                   <div className="text-end mt-3">
                     <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? "Saving..." : "Save Flow Steps"}</button>
                   </div>
@@ -282,20 +426,17 @@ const BotConfig = ({ setBreadcrumbItems, botId: propBotId }) => {
 
                 {/* Tab 7: Embed & Share */}
                 <TabPane tabId="7">
-                  <div className="mb-2">
+                  <div className="mb-3">
                     <h6>Embed Your Chatbot</h6>
-                    <p className="text-muted" style={{ fontSize: 13 }}>Add <strong>{form.bot_name}</strong> to your website using one of these options.</p>
+                    <p className="text-muted" style={{ fontSize: 13 }}>Add <strong>{form.bot_name}</strong> to your website.</p>
                   </div>
-
                   <div style={{ background: "#f4f9fd", border: "1px solid #e0ecf8", borderRadius: 8, padding: "12px 16px", marginBottom: 20, display: "flex", alignItems: "center", gap: 12 }}>
                     <span style={{ fontSize: 13, color: "#445566" }}><strong>Bot URL:</strong> {chatbotUrl}</span>
-                    <a href={chatbotUrl} target="_blank" rel="noreferrer"
-                      className="btn btn-sm ms-auto"
+                    <a href={chatbotUrl} target="_blank" rel="noreferrer" className="btn btn-sm ms-auto"
                       style={{ background: "#008ed3", color: "#fff", border: "none", borderRadius: 6, fontSize: 12 }}>
                       <i className="mdi mdi-open-in-new me-1"></i>Open Bot
                     </a>
                   </div>
-
                   <Row>
                     <Col xl={6}>
                       <div className="d-flex justify-content-between align-items-center mb-2">
@@ -307,7 +448,6 @@ const BotConfig = ({ setBreadcrumbItems, botId: propBotId }) => {
                         </button>
                       </div>
                       <pre style={{ background: "#fff", border: "1px solid #e0ecf8", borderRadius: 8, padding: "12px", fontSize: 11, overflow: "auto", color: "#334" }}>{iframeCode}</pre>
-                      <small className="text-muted">Fixed size chatbot embedded in your page.</small>
                     </Col>
                     <Col xl={6}>
                       <div className="d-flex justify-content-between align-items-center mb-2">
@@ -319,7 +459,7 @@ const BotConfig = ({ setBreadcrumbItems, botId: propBotId }) => {
                         </button>
                       </div>
                       <pre style={{ background: "#fff", border: "1px solid #e0ecf8", borderRadius: 8, padding: "12px", fontSize: 11, overflow: "auto", color: "#334" }}>{scriptCode}</pre>
-                      <small className="text-muted">Floating button in bottom-right corner of your website. Paste before <code>&lt;/body&gt;</code>.</small>
+                      <small className="text-muted">Paste before <code>&lt;/body&gt;</code> tag.</small>
                     </Col>
                   </Row>
                 </TabPane>

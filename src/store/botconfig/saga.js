@@ -13,8 +13,12 @@ function* fetchBotConfigSaga({ payload: { botId } }) {
 function* saveBotConfigSaga({ payload }) {
   try {
     yield put({ type: "SET_BOT_CONFIG_SAVING", payload: true });
-    yield call(updateBotConfig, payload);
-    yield put({ type: "SET_BOT_CONFIG_SAVE_SUCCESS", payload });
+    const result = yield call(updateBotConfig, payload);
+    if (result && result.success) {
+      yield put({ type: "SET_BOT_CONFIG_SAVE_SUCCESS", payload });
+    } else {
+      yield put({ type: "SET_BOT_CONFIG_SAVE_ERROR", payload: result?.error || "Save failed." });
+    }
   } catch (e) {
     yield put({ type: "SET_BOT_CONFIG_SAVE_ERROR", payload: "Save failed. Please try again." });
   }
