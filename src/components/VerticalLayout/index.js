@@ -50,27 +50,7 @@ const Layout = (props) => {
     layoutColor,
     layoutMode
   } = useSelector(selectLayoutProperties);
-
-  useEffect(() => {
-    const hideRightbar = (event) => {
-      var rightbar = document.getElementById("right-bar");
-      //if clicked in inside right bar, then do nothing
-      if (rightbar && rightbar.contains(event.target)) {
-        return;
-      } else {
-        //if clicked in outside of rightbar then fire action for hide rightbar
-        dispatch(showRightSidebarAction(false));
-      }
-    };
-  
-    //init body click event fot toggle rightbar
-    document.body.addEventListener("click", hideRightbar, true);
-  
-    // Cleanup the event listener on component unmount
-    return () => {
-      document.body.removeEventListener("click", hideRightbar, true);
-    };
-  }, [dispatch]); 
+ 
 
   useEffect(() => {
     window.scrollTo(0, 0);
