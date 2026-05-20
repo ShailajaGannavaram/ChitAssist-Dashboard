@@ -19,6 +19,8 @@ import UserManagement from "../pages/UserManagement/index"
 import CreateBot from "../pages/CreateBot/index"
 import ChangePassword from "../pages/ChangePassword/index"
 import MyPlan from "../pages/MyPlan/index"
+import ActivityLog from "../pages/ActivityLog/index"
+import Tickets from "../pages/Tickets/index"
 
 import Pages404 from "../pages/Extra Pages/pages-404"
 import Pages500 from "../pages/Extra Pages/pages-500"
@@ -34,6 +36,8 @@ const userRoutes = [
   { path: "/change-password", component: <ChangePassword /> },
   { path: "/my-plan",         component: <MyPlan /> },
   { path: "/", exact: true,   component: <Navigate to="/dashboard" /> },
+  { path: "/activity-log", component: <ActivityLog /> },
+  { path: "/tickets",      component: <Tickets /> },
 ]
 
 const authRoutes = [

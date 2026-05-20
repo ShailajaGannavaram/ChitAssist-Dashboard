@@ -124,6 +124,8 @@ const SidebarContent = props => {
                 <li><Link to="/admin-bots" className="waves-effect"><i className="mdi mdi-view-grid-outline"></i><span>All Bots</span></Link></li>
                 <li><Link to="/create-bot" className="waves-effect"><i className="mdi mdi-robot-outline"></i><span>Create Bot</span></Link></li>
                 <li><Link to="/users" className="waves-effect"><i className="mdi mdi-account-group"></i><span>User Management</span></Link></li>
+                <li><Link to="/activity-log" className="waves-effect"><i className="mdi mdi-history"></i><span>Activity Log</span></Link></li>
+                <li><Link to="/tickets" className="waves-effect"><i className="mdi mdi-ticket-outline"></i><span>Support Tickets</span></Link></li>
               </>
             ) : (
               <>
@@ -145,6 +147,8 @@ const SidebarContent = props => {
                 <li><Link to="/conversations" className="waves-effect"><i className="mdi mdi-chat-processing-outline"></i><span>Conversations</span></Link></li>
 
                 <li className="menu-title" style={{ color: "#008ed3", fontSize: 10, letterSpacing: 1 }}>SETTINGS</li>
+                <li><Link to="/activity-log" className="waves-effect"><i className="mdi mdi-history"></i><span>Activity Log</span></Link></li>
+                <li><Link to="/tickets" className="waves-effect"><i className="mdi mdi-ticket-outline"></i><span>Support Tickets</span></Link></li>
                 <li><Link to="/bot-config" className="waves-effect"><i className="mdi mdi-cog-outline"></i><span>Bot Configuration</span></Link></li>
               </>
             )}

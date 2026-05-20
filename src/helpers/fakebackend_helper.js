@@ -31,3 +31,7 @@ export const postFakeLogin = (data) => post(url.POST_JWT_LOGIN, data);
 export const postFakeRegister = (data) => post(url.POST_JWT_LOGIN, data);
 export const postFakeForgetPwd = (data) => post(url.POST_JWT_LOGIN, data);
 export const postFakeProfile = (data) => post(url.POST_JWT_LOGIN, data);
+
+export const getActivityLogs = () => get("/api/activity-logs/");
+export const getTickets = () => get("/api/tickets/");
+export const createTicket = (data) => post("/api/tickets/", data);
