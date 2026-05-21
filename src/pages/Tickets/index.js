@@ -83,6 +83,7 @@ const Tickets = ({ setBreadcrumbItems }) => {
       return;
     }
     try {
+      setLoading(true);
       const res = await fetch(`${API}/api/tickets/`, {
         method: "POST",
         headers: {
@@ -103,6 +104,8 @@ const Tickets = ({ setBreadcrumbItems }) => {
       }
     } catch (e) {
       setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -117,7 +120,6 @@ const Tickets = ({ setBreadcrumbItems }) => {
         },
         body: JSON.stringify({ status: newStatus }),
       });
-      const data = await res.json();
       if (res.ok) {
         setSuccess("Ticket status updated successfully.");
         setSelectedTicket(null);
@@ -225,8 +227,8 @@ const Tickets = ({ setBreadcrumbItems }) => {
                       placeholder="e.g. margadarsi" />
                   </div>
                   <div className="d-flex gap-2 mt-4">
-                    <button className="btn btn-primary flex-fill" onClick={handleSubmit}>
-                      <i className="mdi mdi-send me-1"></i>Submit Ticket
+                    <button className="btn btn-primary flex-fill" onClick={handleSubmit} disabled={loading}>
+                      {loading ? <><span className="spinner-border spinner-border-sm me-2" />Submitting...</> : <><i className="mdi mdi-send me-1"></i>Submit Ticket</>}
                     </button>
                     <button className="btn btn-outline-secondary" onClick={() => setShowForm(false)}>
                       Cancel
