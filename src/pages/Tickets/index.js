@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Card, CardBody, Badge, Input, Label, Row, Col, Alert, Modal, ModalHeader, ModalBody, ModalFooter } from "reactstrap";
 import { connect } from "react-redux";
 import { setBreadcrumbItems } from "../../store/actions";
+import { useNavigate } from "react-router-dom";
+// inside component:
 
 const API = process.env.REACT_APP_API_URL || "https://chitassistant.onrender.com";
 
@@ -29,6 +31,7 @@ const PRIORITY_COLORS = {
   high:   "danger",
 };
 
+
 const Tickets = ({ setBreadcrumbItems }) => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +41,7 @@ const Tickets = ({ setBreadcrumbItems }) => {
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [newStatus, setNewStatus] = useState("");
+  const navigate = useNavigate();
 
   const user = getAuthUser();
   const isAdmin = user.is_superuser;
@@ -88,7 +92,7 @@ const Tickets = ({ setBreadcrumbItems }) => {
         body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         setSuccess(`Ticket #${data.ticket_id} raised successfully! You will receive a confirmation email.`);
         setShowForm(false);
         setForm({ title: "", description: "", priority: "medium", bot_id: user.bot_id || "" });
@@ -114,11 +118,15 @@ const Tickets = ({ setBreadcrumbItems }) => {
         body: JSON.stringify({ status: newStatus }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok) {
         setSuccess("Ticket status updated successfully.");
         setSelectedTicket(null);
+        setError("");
         fetchTickets();
         setTimeout(() => setSuccess(""), 3000);
+      } else {
+        const data = await res.json();
+        setError(data.error || "Failed to update status.");
       }
     } catch (e) {
       setError("Failed to update status.");
@@ -284,8 +292,13 @@ const Tickets = ({ setBreadcrumbItems }) => {
                           </span>
                         )}
                       </div>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: "#1e293b", marginBottom: 4 }}>
-                        {ticket.title}
+                      <div
+                        style={{ fontWeight: 600, fontSize: 14, color: "#3b82f6", marginBottom: 4, cursor: "pointer" }}
+                        onClick={() => navigate(`/tickets/${ticket.id}`)}
+                        
+                        
+                      >
+                        {ticket.title} <i className="mdi mdi-arrow-right" style={{ fontSize: 12 }}></i>
                       </div>
                       <div style={{ fontSize: 13, color: "#64748b", marginBottom: 8, lineHeight: 1.5 }}>
                         {ticket.description.length > 150
@@ -337,5 +350,7 @@ const Tickets = ({ setBreadcrumbItems }) => {
     </React.Fragment>
   );
 };
+
+
 
 export default connect(null, { setBreadcrumbItems })(Tickets);
