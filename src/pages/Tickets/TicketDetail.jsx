@@ -24,6 +24,7 @@ const TicketDetail = ({ setBreadcrumbItems }) => {
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [replyText, setReplyText] = useState("");
+  const [attachment, setAttachment] = useState(null);
   const [isInternal, setIsInternal] = useState(false);
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState("");
@@ -64,17 +65,23 @@ const TicketDetail = ({ setBreadcrumbItems }) => {
     if (!replyText.trim()) return;
     setSending(true);
     try {
+      const formData = new FormData();
+      formData.append("message", replyText);
+      formData.append("is_internal", isInternal);
+      if (attachment) formData.append("attachment", attachment);
+
       const res = await fetch(`${API}/api/tickets/${ticketId}/reply/`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${user.access}`,
+          // No Content-Type — browser sets it automatically for FormData
         },
-        body: JSON.stringify({ message: replyText, is_internal: isInternal }),
+        body: formData,
       });
       if (res.ok) {
         setReplyText("");
         setIsInternal(false);
+        setAttachment(null);
         fetchTicket();
       } else {
         setError("Failed to send reply.");
@@ -213,6 +220,25 @@ const TicketDetail = ({ setBreadcrumbItems }) => {
                     <div style={{ fontSize: 13, color: "#1e293b", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
                       {reply.message}
                     </div>
+                    {/* Attachment */}
+                    {reply.attachment_url && (
+                      <div style={{ marginTop: 8 }}>
+                        <a
+                          href={reply.attachment_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 6,
+                            background: "#fff", border: "1px solid #e2e8f0",
+                            borderRadius: 6, padding: "4px 10px", fontSize: 11,
+                            color: "#3b82f6", textDecoration: "none",
+                          }}
+                        >
+                          <i className="mdi mdi-paperclip"></i>
+                          {reply.attachment_name || "Attachment"}
+                        </a>
+                      </div>
+                    )}
                     <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 6, textAlign: "right" }}>
                       {reply.created_at}
                     </div>
@@ -225,7 +251,7 @@ const TicketDetail = ({ setBreadcrumbItems }) => {
         </CardBody>
       </Card>
 
-      {/* Reply Box — only show if ticket is not closed */}
+      {/* Reply Box */}
       {ticket.status !== "closed" && (
         <Card>
           <CardBody>
@@ -238,12 +264,22 @@ const TicketDetail = ({ setBreadcrumbItems }) => {
               placeholder="Type your reply here..."
               style={{ marginBottom: 12, resize: "vertical" }}
             />
-            {/* File upload — ready for future, just uncomment:
             <div className="mb-3">
-              <Label>Attachment (optional)</Label>
-              <Input type="file" />
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#475569", display: "block", marginBottom: 4 }}>
+                Attachment <span style={{ color: "#94a3b8", fontWeight: 400 }}>(optional — image, PDF, doc)</span>
+              </label>
+              <input
+                type="file"
+                accept="image/*,.pdf,.doc,.docx,.txt"
+                onChange={e => setAttachment(e.target.files[0])}
+                style={{ fontSize: 13 }}
+              />
+              {attachment && (
+                <small style={{ color: "#22c55e", display: "block", marginTop: 4 }}>
+                  ✓ {attachment.name}
+                </small>
+              )}
             </div>
-            */}
             <div className="d-flex align-items-center justify-content-between">
               <div>
                 {isAdmin && (
@@ -274,9 +310,11 @@ const TicketDetail = ({ setBreadcrumbItems }) => {
 
       {ticket.status === "closed" && (
         <div className="text-center text-muted py-3" style={{ fontSize: 13 }}>
-          This ticket is closed. <span
+          This ticket is closed.{" "}
+          <span
             style={{ color: "#3b82f6", cursor: "pointer" }}
-            onClick={() => { setNewStatus("open"); handleStatusUpdate(); }}>
+            onClick={() => { setNewStatus("open"); handleStatusUpdate(); }}
+          >
             Reopen ticket
           </span>
         </div>
