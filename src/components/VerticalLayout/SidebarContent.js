@@ -126,6 +126,8 @@ const SidebarContent = props => {
                 <li><Link to="/users" className="waves-effect"><i className="mdi mdi-account-group"></i><span>User Management</span></Link></li>
                 <li><Link to="/activity-log" className="waves-effect"><i className="mdi mdi-history"></i><span>Activity Log</span></Link></li>
                 <li><Link to="/tickets" className="waves-effect"><i className="mdi mdi-ticket-outline"></i><span>Support Tickets</span></Link></li>
+                <li><Link to="/account-settings" className="waves-effect"><i className="mdi mdi-account-cog-outline"></i><span>Account Settings</span></Link></li>
+                <li><Link to="/billing" className="waves-effect"><i className="mdi mdi-receipt"></i><span>Billing</span></Link></li>
               </>
             ) : (
               <>
@@ -150,6 +152,8 @@ const SidebarContent = props => {
                 <li><Link to="/activity-log" className="waves-effect"><i className="mdi mdi-history"></i><span>Activity Log</span></Link></li>
                 <li><Link to="/tickets" className="waves-effect"><i className="mdi mdi-ticket-outline"></i><span>Support Tickets</span></Link></li>
                 <li><Link to="/bot-config" className="waves-effect"><i className="mdi mdi-cog-outline"></i><span>Bot Configuration</span></Link></li>
+                <li><Link to="/account-settings" className="waves-effect"><i className="mdi mdi-account-cog-outline"></i><span>Account Settings</span></Link></li>
+                <li><Link to="/billing" className="waves-effect"><i className="mdi mdi-receipt"></i><span>Billing</span></Link></li>
               </>
             )}
 
