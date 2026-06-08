@@ -34,7 +34,6 @@ const PLANS = [
   },
 ];
 
-// Load Razorpay script dynamically
 const loadRazorpay = () => {
   return new Promise((resolve) => {
     if (window.Razorpay) { resolve(true); return; }
@@ -49,6 +48,7 @@ const loadRazorpay = () => {
 const MyPlan = ({ setBreadcrumbItems }) => {
   const user = getAuthUser();
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [downgradeLoading, setDowngradeLoading] = useState(false);
   const [requestLoading, setRequestLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -70,29 +70,22 @@ const MyPlan = ({ setBreadcrumbItems }) => {
 
   const handlePayment = async (plan) => {
     setPaymentLoading(true); setError(""); setSuccess("");
-
-    // Load Razorpay script
     const loaded = await loadRazorpay();
     if (!loaded) {
       setError("Could not load payment gateway. Please check your internet connection.");
       setPaymentLoading(false); return;
     }
-
     try {
-      // Step 1: Create order on Django backend
       const orderRes = await fetch(`${API_URL}/api/client/payment/create-order/`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify({ plan_name: plan.name }),
       });
       const orderData = await orderRes.json();
-
       if (!orderRes.ok) {
         setError(orderData.error || "Failed to initiate payment.");
         setPaymentLoading(false); return;
       }
-
-      // Step 2: Open Razorpay checkout
       const options = {
         key: RAZORPAY_KEY_ID,
         amount: orderData.amount,
@@ -101,19 +94,10 @@ const MyPlan = ({ setBreadcrumbItems }) => {
         description: `${plan.name} Plan — ${plan.price}/month`,
         image: "https://antsdigital.in/assets/images/antslogo.png",
         order_id: orderData.order_id,
-        prefill: {
-          name: user.username || "",
-          email: user.email || "",
-        },
+        prefill: { name: user.username || "", email: user.email || "" },
         theme: { color: "#008ed3" },
-        modal: {
-          ondismiss: () => {
-            setPaymentLoading(false);
-            setError("Payment cancelled.");
-          }
-        },
+        modal: { ondismiss: () => { setPaymentLoading(false); setError("Payment cancelled."); } },
         handler: async (response) => {
-          // Step 3: Verify payment on Django backend
           try {
             const verifyRes = await fetch(`${API_URL}/api/client/payment/verify/`, {
               method: "POST",
@@ -126,13 +110,10 @@ const MyPlan = ({ setBreadcrumbItems }) => {
               }),
             });
             const verifyData = await verifyRes.json();
-
             if (verifyData.success) {
               setCurrentPlan(verifyData.plan_name);
               setBotQuota(verifyData.bot_quota);
-              setSuccess(`🎉 Payment successful! Your plan has been upgraded to ${verifyData.plan_name}. A confirmation email has been sent to ${user.email}. Please log out and log back in to see updated quota.`);
-
-              // Update localStorage so sidebar shows new plan
+              setSuccess(`🎉 Payment successful! Your plan has been upgraded to ${verifyData.plan_name}. Please log out and log back in to see updated quota.`);
               const authUser = JSON.parse(localStorage.getItem("authUser") || "{}");
               authUser.plan_name = verifyData.plan_name;
               authUser.bot_quota = verifyData.bot_quota;
@@ -141,23 +122,49 @@ const MyPlan = ({ setBreadcrumbItems }) => {
               setError(verifyData.error || "Payment verification failed.");
             }
           } catch {
-            setError("Payment was received but verification failed. Please contact support with Payment ID: " + response.razorpay_payment_id);
+            setError("Payment was received but verification failed. Contact support with Payment ID: " + response.razorpay_payment_id);
           } finally {
             setPaymentLoading(false);
           }
         },
       };
-
       const rzp = new window.Razorpay(options);
       rzp.on("payment.failed", (response) => {
         setError(`Payment failed: ${response.error.description}`);
         setPaymentLoading(false);
       });
       rzp.open();
-
     } catch {
       setError("Could not connect to server. Please try again.");
       setPaymentLoading(false);
+    }
+  };
+
+  const handleDowngrade = async (plan) => {
+    if (!window.confirm(`Downgrade to ${plan.name} plan? Your bot quota will change to ${plan.bots} bot(s). This takes effect immediately.`)) return;
+    setDowngradeLoading(true); setError(""); setSuccess("");
+    try {
+      const res = await fetch(`${API_URL}/api/account/downgrade/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ plan_name: plan.name }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCurrentPlan(data.plan_name);
+        setBotQuota(data.bot_quota);
+        setSuccess(`Plan downgraded to ${data.plan_name} successfully. Quota updated to ${data.bot_quota} bot(s).`);
+        const authUser = JSON.parse(localStorage.getItem("authUser") || "{}");
+        authUser.plan_name = data.plan_name;
+        authUser.bot_quota = data.bot_quota;
+        localStorage.setItem("authUser", JSON.stringify(authUser));
+      } else {
+        setError(data.error || "Downgrade failed. Please try again.");
+      }
+    } catch {
+      setError("Could not connect. Please try again.");
+    } finally {
+      setDowngradeLoading(false);
     }
   };
 
@@ -171,7 +178,7 @@ const MyPlan = ({ setBreadcrumbItems }) => {
       } else {
         setError(data.error || "Failed to send request.");
       }
-    } catch (err) {
+    } catch {
       setError("Could not connect. Please try again.");
     } finally {
       setRequestLoading(false);
@@ -181,6 +188,7 @@ const MyPlan = ({ setBreadcrumbItems }) => {
   const planIndex = (name) => PLANS.findIndex((p) => p.name === name);
   const isCurrentPlan = (name) => name === currentPlan;
   const isUpgrade = (name) => planIndex(name) > planIndex(currentPlan);
+  const isDowngrade = (name) => planIndex(name) < planIndex(currentPlan) && name !== "Custom";
 
   return (
     <React.Fragment>
@@ -233,13 +241,13 @@ const MyPlan = ({ setBreadcrumbItems }) => {
         </Col>
       </Row>
 
-      {success && <Alert color="success" className="mb-4"><i className="mdi mdi-check-circle me-2"></i>{success}</Alert>}
-      {error && <Alert color="danger" className="mb-4">{error}</Alert>}
+      {success && <Alert color="success" className="mb-4" toggle={() => setSuccess("")}><i className="mdi mdi-check-circle me-2"></i>{success}</Alert>}
+      {error && <Alert color="danger" className="mb-4" toggle={() => setError("")}>{error}</Alert>}
 
       {/* Test mode notice */}
       <div style={{ background: "#fff3cd", border: "1px solid #ffc107", borderRadius: 8, padding: "10px 16px", marginBottom: 20, fontSize: 13, color: "#856404" }}>
         <i className="mdi mdi-information-outline me-2"></i>
-        <strong>Test Mode:</strong> Use card number <strong>4111 1111 1111 1111</strong>, any future expiry, CVV <strong>123</strong> to test payment.
+        <strong>Test Mode:</strong> Use card <strong>4111 1111 1111 1111</strong>, any future expiry, CVV <strong>123</strong>.
       </div>
 
       <h5 className="mb-4">Available Plans</h5>
@@ -247,6 +255,7 @@ const MyPlan = ({ setBreadcrumbItems }) => {
         {PLANS.map((plan) => {
           const isCurrent = isCurrentPlan(plan.name);
           const canUpgrade = isUpgrade(plan.name);
+          const canDowngrade = isDowngrade(plan.name);
 
           return (
             <Col xl={3} md={6} key={plan.name} className="mb-4">
@@ -289,14 +298,21 @@ const MyPlan = ({ setBreadcrumbItems }) => {
                   {/* Action buttons */}
                   {isCurrent ? (
                     <button disabled className="btn w-100" style={{ background: "#f8f9fa", color: "#6c757d", border: "1px solid #dee2e6", borderRadius: 8 }}>
-                      Current Plan
+                      ✓ Current Plan
                     </button>
-                  ) : !canUpgrade ? (
-                    <button disabled className="btn w-100" style={{ background: "#f8f9fa", color: "#adb5bd", border: "1px solid #dee2e6", borderRadius: 8, fontSize: 13 }}>
-                      Lower Plan
+                  ) : canDowngrade ? (
+                    <button
+                      className="btn w-100"
+                      disabled={downgradeLoading}
+                      style={{ background: "#fff", color: "#6c757d", border: "1px solid #dee2e6", borderRadius: 8, fontSize: 13 }}
+                      onClick={() => handleDowngrade(plan)}
+                    >
+                      {downgradeLoading
+                        ? <><span className="spinner-border spinner-border-sm me-2" />Processing...</>
+                        : <><i className="mdi mdi-arrow-down me-1"></i>Downgrade to {plan.name}</>
+                      }
                     </button>
-                  ) : plan.name === "Custom" ? (
-                    // Custom plan — request only, no payment
+                  ) : canUpgrade && plan.name === "Custom" ? (
                     showMessageFor === plan.name ? (
                       <div>
                         <Input type="textarea" rows={2} placeholder="Tell us your requirements..." value={message}
@@ -306,7 +322,7 @@ const MyPlan = ({ setBreadcrumbItems }) => {
                           <button className="btn btn-sm flex-fill" disabled={requestLoading}
                             style={{ background: plan.color, color: "#fff", border: "none", borderRadius: 6 }}
                             onClick={() => handleRequest(plan.name)}>
-                            {requestLoading ? <><span className="spinner-border spinner-border-sm me-1"></span>Sending...</> : "Contact Sales"}
+                            {requestLoading ? <><span className="spinner-border spinner-border-sm me-1" />Sending...</> : "Contact Sales"}
                           </button>
                         </div>
                       </div>
@@ -316,16 +332,15 @@ const MyPlan = ({ setBreadcrumbItems }) => {
                         Contact Sales →
                       </button>
                     )
-                  ) : (
-                    // Starter/Pro/Enterprise — Razorpay payment
+                  ) : canUpgrade ? (
                     <button className="btn w-100" disabled={paymentLoading}
                       style={{ background: plan.color, color: "#fff", border: "none", borderRadius: 8, fontWeight: 600 }}
                       onClick={() => handlePayment(plan)}>
                       {paymentLoading
-                        ? <><span className="spinner-border spinner-border-sm me-2"></span>Processing...</>
-                        : <><i className="mdi mdi-credit-card me-1"></i>Pay {plan.price}</>}
+                        ? <><span className="spinner-border spinner-border-sm me-2" />Processing...</>
+                        : <><i className="mdi mdi-credit-card me-1"></i>Upgrade — {plan.price}</>}
                     </button>
-                  )}
+                  ) : null}
                 </CardBody>
               </Card>
             </Col>
@@ -340,11 +355,11 @@ const MyPlan = ({ setBreadcrumbItems }) => {
             <h6 className="mb-3">Frequently Asked Questions</h6>
             <Row>
               <Col xl={6}>
-                <p style={{ fontSize: 13 }}><strong>Is the payment secure?</strong><br />Yes. All payments are processed by Razorpay, a PCI DSS compliant payment gateway. We never store your card details.</p>
-                <p style={{ fontSize: 13 }}><strong>When does my plan upgrade?</strong><br />Immediately after successful payment. Your bot quota updates instantly and a confirmation email is sent.</p>
+                <p style={{ fontSize: 13 }}><strong>Is the payment secure?</strong><br />Yes. All payments are processed by Razorpay, a PCI DSS compliant payment gateway.</p>
+                <p style={{ fontSize: 13 }}><strong>When does my plan upgrade?</strong><br />Immediately after successful payment. Your bot quota updates instantly.</p>
               </Col>
               <Col xl={6}>
-                <p style={{ fontSize: 13 }}><strong>Will I lose my data?</strong><br />No. All existing leads, conversations, and bot configuration are preserved.</p>
+                <p style={{ fontSize: 13 }}><strong>What happens when I downgrade?</strong><br />Your plan changes immediately. If you have more bots than the new quota allows, you'll need to delete some first.</p>
                 <p style={{ fontSize: 13 }}><strong>Need a custom plan?</strong><br />Click "Contact Sales" on the Custom plan or email <a href="mailto:gannavaram.shailaja@antsdigital.in">gannavaram.shailaja@antsdigital.in</a></p>
               </Col>
             </Row>

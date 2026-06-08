@@ -25,6 +25,8 @@ import Tickets from "../pages/Tickets/index"
 import Pages404 from "../pages/Extra Pages/pages-404"
 import Pages500 from "../pages/Extra Pages/pages-500"
 import TicketDetail from "../pages/Tickets/TicketDetail"
+import AccountSettings from "../pages/AccountSettings/index"
+import Billing from "../pages/Billing/index"
 
 const userRoutes = [
   { path: "/dashboard",       component: <Dashboard /> },
@@ -40,6 +42,8 @@ const userRoutes = [
   { path: "/activity-log", component: <ActivityLog /> },
   { path: "/tickets",      component: <Tickets /> },
   { path: "/tickets/:ticketId", component: <TicketDetail /> },
+  { path: "/account-settings", component: <AccountSettings /> },
+  { path: "/billing",          component: <Billing /> },
 ]
 
 const authRoutes = [
