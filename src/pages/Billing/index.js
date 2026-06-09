@@ -151,15 +151,34 @@ const Billing = ({ setBreadcrumbItems }) => {
                       <td style={{ fontSize: 12, color: "#6c757d", whiteSpace: "nowrap" }}>{p.created_at}</td>
                       <td>
                         {p.status === "success" ? (
-                          <a
-                            href={`${API}/api/account/invoice/${p.id}/`}
-                            target="_blank"
-                            rel="noreferrer"
+                          <button
                             className="btn btn-sm btn-outline-primary"
                             style={{ fontSize: 11, padding: "2px 8px" }}
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`${API}/api/account/invoice/${p.id}/`, {
+                                  headers: { Authorization: `Bearer ${user.access}` },
+                                });
+                                if (res.ok) {
+                                  const blob = await res.blob();
+                                  const url = window.URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  a.download = `Invoice-${p.invoice_number || p.id}.pdf`;
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  a.remove();
+                                  window.URL.revokeObjectURL(url);
+                                } else {
+                                  alert('Failed to download invoice.');
+                                }
+                              } catch (e) {
+                                alert('Something went wrong.');
+                              }
+                            }}
                           >
                             <i className="mdi mdi-download me-1"></i>PDF
-                          </a>
+                          </button>
                         ) : (
                           <span style={{ fontSize: 11, color: "#adb5bd" }}>—</span>
                         )}
@@ -173,11 +192,6 @@ const Billing = ({ setBreadcrumbItems }) => {
         </CardBody>
       </Card>
 
-      {/* Note about PDF invoices */}
-      <div style={{ background: "#f8f9fa", border: "1px solid #e9ecef", borderRadius: 8, padding: "12px 16px", marginTop: 16, fontSize: 13, color: "#6c757d" }}>
-        <i className="mdi mdi-information-outline me-2"></i>
-        PDF invoice download will be available in the next update. Your payment details are stored securely.
-      </div>
     </React.Fragment>
   );
 };
