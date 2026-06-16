@@ -180,6 +180,10 @@ const BotConfig = ({ setBreadcrumbItems, botId: propBotId }) => {
                     <Col xl={4}><Toggle label="Voice Enabled" field="voice_enabled" /></Col>
                     <Col xl={4}><Toggle label="Show Progress Bar" field="show_progress" /></Col>
                     <Col xl={4}><Toggle label="Show Blogs" field="show_blogs" /></Col>
+                    <Col xl={12}>
+                      <F label="Completion Message" field="completion_message" type="textarea"
+                        help='Message shown when flow completes. Use {field_name} for user answers. e.g. Thank you {name}! We will call at {phone}.' />
+                    </Col>
                   </Row>
                 </TabPane>
 
@@ -246,8 +250,6 @@ const BotConfig = ({ setBreadcrumbItems, botId: propBotId }) => {
                     </button>
                   </div>
                 </TabPane>
-
-
 
                 {/* Tab 5: Quick Suggestions */}
                 <TabPane tabId="5">

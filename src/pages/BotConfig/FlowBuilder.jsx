@@ -231,6 +231,8 @@ function nodesToSteps(nodes) {
       api_response_path: n.data.api_response_path || "",
       depends_on_field: n.data.depends_on_field || "",
       conditions: n.data.conditions || [],
+      knowledge_base: n.data.knowledge_base || "",
+      response_message: n.data.response_message || "",
     }));
 }
 
@@ -398,6 +400,39 @@ const StepEditor = ({ node, allNodes, onChange, onClose, onDelete }) => {
             ))
           )}
         </div>
+        {/* Knowledge Base */}
+        <div style={{ background: "#f0fff4", border: "1px solid #bbf7d0", borderRadius: 8, padding: 12, marginTop: 12 }}>
+          <div className="d-flex align-items-center gap-2 mb-2">
+            <i className="mdi mdi-database-outline" style={{ color: "#22c55e" }}></i>
+            <strong style={{ fontSize: 12, color: "#15803d" }}>Knowledge Base</strong>
+          </div>
+          <small className="text-muted d-block mb-2" style={{ fontSize: 10 }}>
+            Claude uses this info to answer at this step (product links, pricing, catalog).
+          </small>
+          <textarea
+            rows={4}
+            value={localData.knowledge_base || ""}
+            placeholder="Paste product links, pricing, catalog..."
+            onChange={e => update("knowledge_base", e.target.value)}
+            style={{ width: "100%", border: "1px solid #bbf7d0", borderRadius: 6, padding: "6px 8px", fontSize: 11, fontFamily: "monospace", boxSizing: "border-box", resize: "vertical" }}
+          />
+        </div>
+        <div style={{ background: "#f0f7ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: 12, marginTop: 12 }}>
+          <div className="d-flex align-items-center gap-2 mb-2">
+            <i className="mdi mdi-message-reply-outline" style={{ color: "#3b82f6" }}></i>
+            <strong style={{ fontSize: 12, color: "#1d4ed8" }}>Response Message</strong>
+          </div>
+          <small className="text-muted d-block mb-2" style={{ fontSize: 10 }}>
+            Shown after user answers. Use {"{field_name}"} placeholders.
+          </small>
+          <textarea
+            rows={2}
+            value={localData.response_message || ""}
+            placeholder="e.g. Great! You selected {motor_type}..."
+            onChange={e => update("response_message", e.target.value)}
+            style={{ width: "100%", border: "1px solid #bfdbfe", borderRadius: 6, padding: "6px 8px", fontSize: 11, boxSizing: "border-box", resize: "vertical" }}
+          />
+        </div>
       </div>
     </div>
   );
@@ -475,13 +510,7 @@ const FlowBuilder = ({ flowSteps = [], onChange }) => {
           x: lastStep ? lastStep.position.x + 300 : 400,
           y: lastStep ? lastStep.position.y : 160,
         },
-        data: {
-          order: newOrder, question: "New question",
-          field_name: `field_${newOrder}`, field_type: "text",
-          options: [], is_required: false, data_source: "static",
-          api_endpoint: "", api_response_path: "",
-          depends_on_field: "", conditions: [],
-        },
+        data: { order: newOrder, question: "New question", field_name: `field_${newOrder}`, field_type: "text", options: [], is_required: false, data_source: "static", api_endpoint: "", api_response_path: "", depends_on_field: "", conditions: [], knowledge_base: "", response_message: "" },
       };
       const updated = [
         ...nds.map(n => n.id === "end" ? { ...n, position: { ...n.position, x: n.position.x + 300 } } : n),
