@@ -414,6 +414,7 @@ const StepEditor = ({ node, allNodes, onChange, onClose, onDelete }) => {
             value={localData.knowledge_base || ""}
             placeholder="Paste product links, pricing, catalog..."
             onChange={e => update("knowledge_base", e.target.value)}
+            onBlur={save}
             style={{ width: "100%", border: "1px solid #bbf7d0", borderRadius: 6, padding: "6px 8px", fontSize: 11, fontFamily: "monospace", boxSizing: "border-box", resize: "vertical" }}
           />
         </div>
@@ -430,6 +431,7 @@ const StepEditor = ({ node, allNodes, onChange, onClose, onDelete }) => {
             value={localData.response_message || ""}
             placeholder="e.g. Great! You selected {motor_type}..."
             onChange={e => update("response_message", e.target.value)}
+            onBlur={save}
             style={{ width: "100%", border: "1px solid #bfdbfe", borderRadius: 6, padding: "6px 8px", fontSize: 11, boxSizing: "border-box", resize: "vertical" }}
           />
         </div>
