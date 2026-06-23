@@ -10,26 +10,36 @@ const getAuthUser = () => {
 };
 
 const STATUS_OPTIONS = [
-  { value: "new",           label: "New",           color: "primary" },
-  { value: "contacted",     label: "Contacted",     color: "info" },
-  { value: "converted",     label: "Converted",     color: "success" },
-  { value: "not_interested",label: "Not Interested",color: "danger" },
+  { value: "new",            label: "New",            color: "primary" },
+  { value: "contacted",      label: "Contacted",      color: "info" },
+  { value: "converted",      label: "Converted",      color: "success" },
+  { value: "not_interested", label: "Not Interested", color: "danger" },
 ];
 
-const getStatusColor = (status) => STATUS_OPTIONS.find(s => s.value === status)?.color || "secondary";
-const getStatusLabel = (status) => STATUS_OPTIONS.find(s => s.value === status)?.label || status;
+const getStatusColor = (s) => STATUS_OPTIONS.find(o => o.value === s)?.color || "secondary";
+const getStatusLabel = (s) => STATUS_OPTIONS.find(o => o.value === s)?.label || s;
 
 const Leads = ({ setBreadcrumbItems }) => {
   const user = getAuthUser();
   const botId = user.bot_id || "margadarsi";
 
+  // Lead state
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState(null);
+
+  // Filter state
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [updatingId, setUpdatingId] = useState(null);
+
+  // Import state
+  const [showImport, setShowImport] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const [importHistory, setImportHistory] = useState([]);
 
   document.title = "Leads | ChitAssist Dashboard";
 
@@ -39,8 +49,10 @@ const Leads = ({ setBreadcrumbItems }) => {
       { title: "Leads", link: "#" },
     ]);
     fetchLeads();
+    fetchImportHistory();
   }, [botId]); // eslint-disable-line
 
+  // ── Fetch leads ────────────────────────────────────────────────
   const fetchLeads = useCallback(async () => {
     setLoading(true);
     try {
@@ -48,7 +60,6 @@ const Leads = ({ setBreadcrumbItems }) => {
       if (statusFilter) url += `&status=${statusFilter}`;
       if (dateFrom) url += `&date_from=${dateFrom}`;
       if (dateTo) url += `&date_to=${dateTo}`;
-
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${user.access}` },
       });
@@ -61,6 +72,7 @@ const Leads = ({ setBreadcrumbItems }) => {
     }
   }, [botId, statusFilter, dateFrom, dateTo]); // eslint-disable-line
 
+  // ── Update lead status ─────────────────────────────────────────
   const handleStatusChange = async (leadId, newStatus) => {
     setUpdatingId(leadId);
     try {
@@ -82,6 +94,48 @@ const Leads = ({ setBreadcrumbItems }) => {
     }
   };
 
+  // ── Import history ─────────────────────────────────────────────
+  const fetchImportHistory = async () => {
+    try {
+      const res = await fetch(`${API}/api/client/leads/import/history/?bot_id=${botId}`, {
+        headers: { Authorization: `Bearer ${user.access}` },
+      });
+      const data = await res.json();
+      setImportHistory(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // ── Handle CSV import ──────────────────────────────────────────
+  const handleImport = async () => {
+    if (!importFile) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", importFile);
+      formData.append("bot_id", botId);
+      const res = await fetch(`${API}/api/client/leads/import/`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${user.access}` },
+        body: formData,
+      });
+      const data = await res.json();
+      setImportResult(data);
+      if (data.success) {
+        fetchLeads();
+        fetchImportHistory();
+      }
+    } catch (e) {
+      setImportResult({ error: "Upload failed. Please try again." });
+    } finally {
+      setImporting(false);
+      setImportFile(null);
+    }
+  };
+
+  // ── Export CSV ─────────────────────────────────────────────────
   const allKeys = Array.from(new Set((leads || []).flatMap(l => Object.keys(l.data || {}))));
 
   const filtered = (leads || []).filter(lead => {
@@ -107,7 +161,7 @@ const Leads = ({ setBreadcrumbItems }) => {
     a.click();
   };
 
-  // Status counts
+  // ── Status counts for summary cards ───────────────────────────
   const counts = STATUS_OPTIONS.reduce((acc, s) => {
     acc[s.value] = (leads || []).filter(l => l.status === s.value).length;
     return acc;
@@ -115,22 +169,24 @@ const Leads = ({ setBreadcrumbItems }) => {
 
   return (
     <React.Fragment>
-      {/* Status summary cards */}
+
+      {/* ── Status Summary Cards ── */}
       <Row className="mb-3">
         {STATUS_OPTIONS.map(s => (
           <Col xl={3} key={s.value}>
             <Card
               style={{
-                border: `1px solid ${statusFilter === s.value ? "#008ed3" : "#e9ecef"}`,
+                border: `2px solid ${statusFilter === s.value ? "#008ed3" : "#e9ecef"}`,
                 cursor: "pointer",
                 background: statusFilter === s.value ? "#f0f7ff" : "#fff",
+                transition: "all 0.2s",
               }}
-              onClick={() => { setStatusFilter(statusFilter === s.value ? "" : s.value); fetchLeads(); }}
+              onClick={() => setStatusFilter(statusFilter === s.value ? "" : s.value)}
             >
               <CardBody className="py-3">
                 <div className="d-flex align-items-center justify-content-between">
                   <div>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: "#1e293b" }}>{counts[s.value]}</div>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: "#1e293b" }}>{counts[s.value]}</div>
                     <div style={{ fontSize: 13, color: "#6c757d" }}>{s.label}</div>
                   </div>
                   <Badge color={s.color} style={{ fontSize: 12, padding: "6px 10px" }}>{s.label}</Badge>
@@ -145,21 +201,23 @@ const Leads = ({ setBreadcrumbItems }) => {
         <Col xl={12}>
           <Card>
             <CardBody>
-              {/* Header */}
+
+              {/* ── Header + Filters ── */}
               <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
                 <div>
                   <h4 className="card-title mb-1">All Leads</h4>
                   <p className="text-muted mb-0">
                     Showing <strong>{filtered.length}</strong> of <strong>{leads?.length || 0}</strong> leads
-                    {statusFilter && <> — filtered by <Badge color={getStatusColor(statusFilter)}>{getStatusLabel(statusFilter)}</Badge></>}
+                    {statusFilter && (
+                      <> — filtered by <Badge color={getStatusColor(statusFilter)}>{getStatusLabel(statusFilter)}</Badge></>
+                    )}
                   </p>
                 </div>
                 <div className="d-flex gap-2 flex-wrap align-items-end">
                   <div>
                     <Label style={{ fontSize: 12, marginBottom: 2 }}>Status</Label>
                     <Input type="select" value={statusFilter}
-                      onChange={e => setStatusFilter(e.target.value)}
-                      style={{ width: 150 }}>
+                      onChange={e => setStatusFilter(e.target.value)} style={{ width: 150 }}>
                       <option value="">All Statuses</option>
                       {STATUS_OPTIONS.map(s => (
                         <option key={s.value} value={s.value}>{s.label}</option>
@@ -188,13 +246,111 @@ const Leads = ({ setBreadcrumbItems }) => {
                       Clear
                     </button>
                   )}
+                  <button className="btn btn-primary btn-sm" style={{ height: 38 }}
+                    onClick={() => { setShowImport(!showImport); setImportResult(null); }}>
+                    <i className="mdi mdi-upload me-1"></i>Import CSV
+                  </button>
                   <button className="btn btn-success btn-sm" style={{ height: 38 }} onClick={exportCSV}>
                     <i className="mdi mdi-download me-1"></i>Export CSV
                   </button>
                 </div>
               </div>
 
-              {/* Table */}
+              {/* ── Import Panel ── */}
+              {showImport && (
+                <div style={{
+                  background: "#f8f9fa", border: "1px solid #e9ecef",
+                  borderRadius: 10, padding: 20, marginBottom: 20,
+                }}>
+                  <h6 className="mb-3"><i className="mdi mdi-upload me-2"></i>Import Leads from CSV</h6>
+
+                  <div style={{
+                    background: "#fff3cd", border: "1px solid #ffc107",
+                    borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13,
+                  }}>
+                    <i className="mdi mdi-information-outline me-2"></i>
+                    CSV first row must be column headers. Column names become lead field names automatically.
+                    Example: <strong>name, email, phone, city</strong>
+                  </div>
+
+                  <div className="d-flex align-items-center gap-3 flex-wrap">
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={e => { setImportFile(e.target.files[0]); setImportResult(null); }}
+                      style={{ fontSize: 13 }}
+                    />
+                    {importFile && (
+                      <span style={{ fontSize: 12, color: "#22c55e" }}>✓ {importFile.name}</span>
+                    )}
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={handleImport}
+                      disabled={!importFile || importing}
+                    >
+                      {importing
+                        ? <><span className="spinner-border spinner-border-sm me-2" />Importing...</>
+                        : <><i className="mdi mdi-upload me-1"></i>Upload & Import</>
+                      }
+                    </button>
+                  </div>
+
+                  {/* Import result */}
+                  {importResult && (
+                    <div style={{
+                      marginTop: 12, padding: "10px 14px", borderRadius: 8, fontSize: 13,
+                      background: importResult.success ? "#f0fdf4" : "#fef2f2",
+                      border: `1px solid ${importResult.success ? "#bbf7d0" : "#fecaca"}`,
+                    }}>
+                      {importResult.success ? (
+                        <>
+                          <strong style={{ color: "#15803d" }}>✓ Import complete!</strong>
+                          <span className="ms-2">{importResult.imported} leads imported successfully.</span>
+                          {importResult.failed > 0 && (
+                            <span className="ms-2 text-danger">{importResult.failed} rows failed.</span>
+                          )}
+                          {importResult.errors?.length > 0 && (
+                            <div className="mt-2">
+                              {importResult.errors.map((e, i) => (
+                                <div key={i} style={{ color: "#dc2626", fontSize: 11 }}>{e}</div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <span style={{ color: "#dc2626" }}>✗ {importResult.error}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Import history */}
+                  {importHistory.length > 0 && (
+                    <div className="mt-3">
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#64748b", marginBottom: 8 }}>
+                        Recent Imports
+                      </div>
+                      {importHistory.slice(0, 5).map(imp => (
+                        <div key={imp.id} style={{
+                          display: "flex", alignItems: "center", gap: 12,
+                          padding: "6px 0", borderBottom: "1px solid #f1f5f9", fontSize: 12,
+                        }}>
+                          <i className="mdi mdi-file-delimited-outline" style={{ color: "#64748b" }}></i>
+                          <span style={{ color: "#1e293b", fontWeight: 500 }}>{imp.file_name}</span>
+                          <span style={{ color: "#64748b" }}>{imp.imported_count}/{imp.total_rows} rows</span>
+                          <span style={{
+                            background: imp.status === "done" ? "#f0fdf4" : "#fef2f2",
+                            color: imp.status === "done" ? "#15803d" : "#dc2626",
+                            borderRadius: 4, padding: "1px 6px", fontSize: 11, fontWeight: 600,
+                          }}>{imp.status}</span>
+                          <span style={{ color: "#94a3b8", marginLeft: "auto" }}>{imp.created_at}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Leads Table ── */}
               {loading ? (
                 <div className="text-center py-5">
                   <div className="spinner-border text-primary" />
@@ -209,7 +365,9 @@ const Leads = ({ setBreadcrumbItems }) => {
                         <th>Serial</th>
                         <th>Status</th>
                         {allKeys.map(k => (
-                          <th key={k} style={{ textTransform: "capitalize" }}>{k.replace(/_/g, " ")}</th>
+                          <th key={k} style={{ textTransform: "capitalize" }}>
+                            {k.replace(/_/g, " ")}
+                          </th>
                         ))}
                         <th>Date</th>
                         <th>Time</th>
@@ -219,10 +377,11 @@ const Leads = ({ setBreadcrumbItems }) => {
                     <tbody>
                       {filtered.length === 0 ? (
                         <tr>
-                          <td colSpan={allKeys.length + 6} className="text-center text-muted py-4">
+                          <td colSpan={allKeys.length + 6} className="text-center text-muted py-5">
+                            <i className="mdi mdi-account-group-outline d-block mb-2" style={{ fontSize: 40 }}></i>
                             {search || dateFrom || dateTo || statusFilter
-                              ? "No leads match your filters"
-                              : "No leads yet"}
+                              ? "No leads match your filters."
+                              : "No leads yet. Leads will appear here once users complete the chatbot flow."}
                           </td>
                         </tr>
                       ) : (
@@ -241,17 +400,17 @@ const Leads = ({ setBreadcrumbItems }) => {
                                 disabled={updatingId === lead.id}
                                 onChange={e => handleStatusChange(lead.id, e.target.value)}
                                 style={{
-                                  fontSize: 11, padding: "2px 6px", width: 130, height: 28,
+                                  fontSize: 11, padding: "2px 6px",
+                                  width: 135, height: 28, borderRadius: 6,
                                   border: `1px solid`,
-                                  borderColor: lead.status === "converted" ? "#22c55e"
-                                    : lead.status === "not_interested" ? "#ef4444"
-                                    : lead.status === "contacted" ? "#3b82f6"
-                                    : "#94a3b8",
-                                  borderRadius: 6,
-                                  color: lead.status === "converted" ? "#15803d"
-                                    : lead.status === "not_interested" ? "#b91c1c"
-                                    : lead.status === "contacted" ? "#1d4ed8"
-                                    : "#475569",
+                                  borderColor:
+                                    lead.status === "converted" ? "#22c55e" :
+                                    lead.status === "not_interested" ? "#ef4444" :
+                                    lead.status === "contacted" ? "#3b82f6" : "#94a3b8",
+                                  color:
+                                    lead.status === "converted" ? "#15803d" :
+                                    lead.status === "not_interested" ? "#b91c1c" :
+                                    lead.status === "contacted" ? "#1d4ed8" : "#475569",
                                 }}
                               >
                                 {STATUS_OPTIONS.map(s => (
@@ -265,7 +424,10 @@ const Leads = ({ setBreadcrumbItems }) => {
                             <td style={{ fontSize: 12, color: "#6c757d" }}>{lead.lead_date}</td>
                             <td style={{ fontSize: 12, color: "#6c757d" }}>{lead.created_at}</td>
                             <td>
-                              <Badge color={lead.webhook_sent ? "success" : "warning"} style={{ fontSize: 10 }}>
+                              <Badge
+                                color={lead.webhook_sent ? "success" : "warning"}
+                                style={{ fontSize: 10 }}
+                              >
                                 {lead.webhook_sent ? "Sent" : "Pending"}
                               </Badge>
                             </td>
@@ -276,6 +438,7 @@ const Leads = ({ setBreadcrumbItems }) => {
                   </table>
                 </div>
               )}
+
             </CardBody>
           </Card>
         </Col>
