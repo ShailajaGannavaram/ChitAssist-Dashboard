@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useSelector, useDispatch, connect } from "react-redux";
-import { Row, Col, Card, CardBody, Input, Badge } from "reactstrap";
+import { Row, Col, Card, CardBody, Input } from "reactstrap";
 import { setBreadcrumbItems, fetchConversations, fetchConversationHistory } from "../../store/actions";
 
 const getAuthUser = () => {
@@ -10,27 +10,43 @@ const getAuthUser = () => {
 const Conversations = ({ setBreadcrumbItems }) => {
   const dispatch = useDispatch();
   const user = getAuthUser();
-  const botId = user.bot_id || "margadarsi";
+  const allUserBots = user.all_bots || user.all_user_bots || [];
+
+  // Bot switcher — default to user's primary bot
+  const [botId, setBotId] = useState(user.bot_id || (allUserBots[0]?.bot_id) || "margadarsi");
+  const [botName, setBotName] = useState(user.bot_name || (allUserBots[0]?.bot_name) || "");
+
   const [search, setSearch] = useState("");
   const [offcanvasOpen, setOffcanvasOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
+
   document.title = "Conversations | ChitAssist Dashboard";
 
   useEffect(() => {
-    setBreadcrumbItems("Conversations", [{ title: "Dashboard", link: "/dashboard" }, { title: "Conversations", link: "#" }]);
+    setBreadcrumbItems("Conversations", [
+      { title: "Dashboard", link: "/dashboard" },
+      { title: "Conversations", link: "#" },
+    ]);
     dispatch(fetchConversations(botId));
   }, [botId]); // eslint-disable-line
 
-  const { conversations, loading, history, historyLoading } = useSelector((s) => s.Conversations);
+  const { conversations, loading, history, historyLoading } = useSelector(s => s.Conversations);
 
-  // Search by session ID or any message content
-  const filtered = (conversations || []).filter((c) => {
+  // Switch bot — reset search and close any open chat panel
+  const handleBotSwitch = (newBotId) => {
+    const bot = allUserBots.find(b => b.bot_id === newBotId);
+    setBotId(newBotId);
+    setBotName(bot?.bot_name || newBotId);
+    setSearch("");
+    setOffcanvasOpen(false);
+    setSelectedSession(null);
+  };
+
+  const filtered = (conversations || []).filter(c => {
     const s = search.toLowerCase();
     if (!s) return true;
     if (c.session_id?.toLowerCase().includes(s)) return true;
-    // Search inside messages
-    const msgs = c.messages || [];
-    return msgs.some((m) => m.content?.toLowerCase().includes(s));
+    return (c.messages || []).some(m => m.content?.toLowerCase().includes(s));
   });
 
   const openHistory = useCallback((sessionId) => {
@@ -47,38 +63,69 @@ const Conversations = ({ setBreadcrumbItems }) => {
         <Col xl={12}>
           <Card>
             <CardBody>
-              <div className="d-flex justify-content-between align-items-center mb-4">
+
+              {/* ── Header + Bot Switcher + Search ── */}
+              <div className="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
                 <div>
                   <h4 className="card-title mb-1">All Conversations</h4>
                   <p className="text-muted mb-0">
-                    Showing <strong>{filtered.length}</strong> of <strong>{conversations?.length || 0}</strong> sessions for <strong>{user.bot_name}</strong>
+                    Showing <strong>{filtered.length}</strong> of <strong>{conversations?.length || 0}</strong> sessions
+                    for <strong>{botName || botId}</strong>
                   </p>
+                  {/* Bot switcher — only visible if client has multiple bots */}
+                  {allUserBots.length > 1 && (
+                    <div className="d-flex align-items-center gap-2 mt-2">
+                      <small className="text-muted">Switch Bot:</small>
+                      <Input type="select" value={botId}
+                        onChange={e => handleBotSwitch(e.target.value)}
+                        style={{ fontSize: 13, width: "auto", minWidth: 180 }}>
+                        {allUserBots.map(b => (
+                          <option key={b.bot_id} value={b.bot_id}>{b.bot_name} ({b.bot_id})</option>
+                        ))}
+                      </Input>
+                    </div>
+                  )}
                 </div>
                 <Input type="text" placeholder="Search by session ID or message content..."
-                  value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 320 }} />
+                  value={search} onChange={e => setSearch(e.target.value)} style={{ width: 320 }} />
               </div>
 
+              {/* ── Conversations Table ── */}
               {loading ? (
                 <div className="text-center py-5"><div className="spinner-border text-primary" /></div>
               ) : (
                 <div className="table-responsive">
                   <table className="table table-centered table-hover table-nowrap mb-0">
                     <thead className="table-light">
-                      <tr><th>#</th><th>Session ID</th><th>Messages</th><th>Started</th><th>Last Active</th><th>Action</th></tr>
+                      <tr>
+                        <th>#</th>
+                        <th>Session ID</th>
+                        <th>Messages</th>
+                        <th>Started</th>
+                        <th>Last Active</th>
+                        <th>Action</th>
+                      </tr>
                     </thead>
                     <tbody>
                       {filtered.length === 0 ? (
-                        <tr><td colSpan={6} className="text-center text-muted py-4">
-                          {search ? "No conversations match your search" : "No conversations yet"}
-                        </td></tr>
+                        <tr>
+                          <td colSpan={6} className="text-center text-muted py-5">
+                            <i className="mdi mdi-chat-outline d-block mb-2" style={{ fontSize: 40 }}></i>
+                            {search ? "No conversations match your search." : "No conversations yet."}
+                          </td>
+                        </tr>
                       ) : (
                         filtered.map((conv, i) => (
                           <tr key={conv.id || i}>
-                            <td>{i + 1}</td>
+                            <td style={{ fontSize: 13, color: "#6c757d" }}>{i + 1}</td>
                             <td><code style={{ fontSize: 12 }}>{conv.session_id?.substring(0, 20)}...</code></td>
-                            <td><Badge color="info">{conv.messages?.length || conv.message_count || 0} msgs</Badge></td>
-                            <td>{new Date(conv.created_at).toLocaleString("en-IN")}</td>
-                            <td>{new Date(conv.updated_at).toLocaleString("en-IN")}</td>
+                            <td>
+                              <span style={{ background: "#f0f7ff", color: "#3b82f6", borderRadius: 6, padding: "2px 8px", fontSize: 12, fontWeight: 600 }}>
+                                {conv.messages?.length || conv.message_count || 0} msgs
+                              </span>
+                            </td>
+                            <td style={{ fontSize: 13 }}>{new Date(conv.created_at).toLocaleString("en-IN")}</td>
+                            <td style={{ fontSize: 13 }}>{new Date(conv.updated_at).toLocaleString("en-IN")}</td>
                             <td>
                               <button className="btn btn-sm btn-outline-primary" onClick={() => openHistory(conv.session_id)}>
                                 <i className="mdi mdi-eye me-1"></i>View Chat
@@ -96,8 +143,11 @@ const Conversations = ({ setBreadcrumbItems }) => {
         </Col>
       </Row>
 
-      {/* Offcanvas */}
-      {offcanvasOpen && <div onClick={() => setOffcanvasOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1040 }} />}
+      {/* ── Chat History Offcanvas ── */}
+      {offcanvasOpen && (
+        <div onClick={() => setOffcanvasOpen(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1040 }} />
+      )}
       <div style={{
         position: "fixed", top: 0, right: 0, height: "100vh", width: 420,
         background: "#fff", zIndex: 1045, boxShadow: "-4px 0 24px rgba(0,0,0,0.15)",
@@ -117,7 +167,7 @@ const Conversations = ({ setBreadcrumbItems }) => {
           {historyLoading ? (
             <div className="text-center py-4"><div className="spinner-border text-primary" /></div>
           ) : messages.length === 0 ? (
-            <p className="text-center text-muted py-4">No messages found</p>
+            <p className="text-center text-muted py-4">No messages found.</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {messages.map((msg, i) => {

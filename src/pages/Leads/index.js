@@ -21,12 +21,18 @@ const getStatusLabel = (s) => STATUS_OPTIONS.find(o => o.value === s)?.label || 
 
 const Leads = ({ setBreadcrumbItems }) => {
   const user = getAuthUser();
-  const botId = user.bot_id || "margadarsi";
+  const allUserBots = user.all_bots || user.all_user_bots || [];
+
+  // Bot switcher — default to first bot or user's bot_id
+  const [botId, setBotId] = useState(user.bot_id || (allUserBots[0]?.bot_id) || "margadarsi");
+  const [botName, setBotName] = useState(user.bot_name || (allUserBots[0]?.bot_name) || "");
 
   // Lead state
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
+  const [pushingId, setPushingId] = useState(null);
+  const [pushResult, setPushResult] = useState({});
 
   // Filter state
   const [search, setSearch] = useState("");
@@ -51,6 +57,18 @@ const Leads = ({ setBreadcrumbItems }) => {
     fetchLeads();
     fetchImportHistory();
   }, [botId]); // eslint-disable-line
+
+  // ── Switch bot ────────────────────────────────────────────────
+  const handleBotSwitch = (newBotId) => {
+    const bot = allUserBots.find(b => b.bot_id === newBotId);
+    setBotId(newBotId);
+    setBotName(bot?.bot_name || newBotId);
+    setLeads([]);
+    setStatusFilter("");
+    setSearch("");
+    setDateFrom("");
+    setDateTo("");
+  };
 
   // ── Fetch leads ────────────────────────────────────────────────
   const fetchLeads = useCallback(async () => {
@@ -78,19 +96,37 @@ const Leads = ({ setBreadcrumbItems }) => {
     try {
       const res = await fetch(`${API}/api/client/leads/${leadId}/`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${user.access}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${user.access}` },
         body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) {
         setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus } : l));
       }
+    } catch (e) { console.error(e); }
+    finally { setUpdatingId(null); }
+  };
+
+  // ── Phase 2: Push lead to CRM ─────────────────────────────────
+  // Sends lead data to the bot's configured webhook_url (CRM endpoint)
+  // Phase 3 will extend this with CRMIntegration model and field mapping
+  const handlePushToCRM = async (lead) => {
+    setPushingId(lead.id);
+    setPushResult(prev => ({ ...prev, [lead.id]: null }));
+    try {
+      const res = await fetch(`${API}/api/client/leads/${lead.id}/push-crm/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${user.access}` },
+        body: JSON.stringify({ bot_id: botId }),
+      });
+      const data = await res.json();
+      setPushResult(prev => ({ ...prev, [lead.id]: data.success ? "success" : "error" }));
+      // Clear result after 3 seconds
+      setTimeout(() => setPushResult(prev => ({ ...prev, [lead.id]: null })), 3000);
     } catch (e) {
-      console.error(e);
+      setPushResult(prev => ({ ...prev, [lead.id]: "error" }));
+      setTimeout(() => setPushResult(prev => ({ ...prev, [lead.id]: null })), 3000);
     } finally {
-      setUpdatingId(null);
+      setPushingId(null);
     }
   };
 
@@ -102,9 +138,7 @@ const Leads = ({ setBreadcrumbItems }) => {
       });
       const data = await res.json();
       setImportHistory(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
   };
 
   // ── Handle CSV import ──────────────────────────────────────────
@@ -123,16 +157,10 @@ const Leads = ({ setBreadcrumbItems }) => {
       });
       const data = await res.json();
       setImportResult(data);
-      if (data.success) {
-        fetchLeads();
-        fetchImportHistory();
-      }
+      if (data.success) { fetchLeads(); fetchImportHistory(); }
     } catch (e) {
       setImportResult({ error: "Upload failed. Please try again." });
-    } finally {
-      setImporting(false);
-      setImportFile(null);
-    }
+    } finally { setImporting(false); setImportFile(null); }
   };
 
   // ── Export CSV ─────────────────────────────────────────────────
@@ -149,19 +177,16 @@ const Leads = ({ setBreadcrumbItems }) => {
       `${l.lead_date}#${String(l.serial_number).padStart(3, "0")}`,
       getStatusLabel(l.status),
       ...allKeys.map(k => `"${l.data?.[k] || ""}"`),
-      l.lead_date,
-      l.created_at,
+      l.lead_date, l.created_at,
       l.webhook_sent ? "Sent" : "Pending",
     ]);
     const csv = [headers, ...rows].map(r => r.join(",")).join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    const label = dateFrom && dateTo ? `${dateFrom}_to_${dateTo}` : "all";
-    a.download = `leads_${botId}_${label}.csv`;
+    a.download = `leads_${botId}_${dateFrom && dateTo ? `${dateFrom}_to_${dateTo}` : "all"}.csv`;
     a.click();
   };
 
-  // ── Status counts for summary cards ───────────────────────────
   const counts = STATUS_OPTIONS.reduce((acc, s) => {
     acc[s.value] = (leads || []).filter(l => l.status === s.value).length;
     return acc;
@@ -177,9 +202,7 @@ const Leads = ({ setBreadcrumbItems }) => {
             <Card
               style={{
                 border: `2px solid ${statusFilter === s.value ? "#008ed3" : "#e9ecef"}`,
-                cursor: "pointer",
-                background: statusFilter === s.value ? "#f0f7ff" : "#fff",
-                transition: "all 0.2s",
+                cursor: "pointer", background: statusFilter === s.value ? "#f0f7ff" : "#fff",
               }}
               onClick={() => setStatusFilter(statusFilter === s.value ? "" : s.value)}
             >
@@ -202,16 +225,28 @@ const Leads = ({ setBreadcrumbItems }) => {
           <Card>
             <CardBody>
 
-              {/* ── Header + Filters ── */}
-              <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+              {/* ── Header + Bot Switcher + Filters ── */}
+              <div className="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-3">
                 <div>
                   <h4 className="card-title mb-1">All Leads</h4>
                   <p className="text-muted mb-0">
                     Showing <strong>{filtered.length}</strong> of <strong>{leads?.length || 0}</strong> leads
-                    {statusFilter && (
-                      <> — filtered by <Badge color={getStatusColor(statusFilter)}>{getStatusLabel(statusFilter)}</Badge></>
-                    )}
+                    for <strong>{botName || botId}</strong>
+                    {statusFilter && <> — <Badge color={getStatusColor(statusFilter)}>{getStatusLabel(statusFilter)}</Badge></>}
                   </p>
+                  {/* Bot switcher — only shows if client has more than one bot */}
+                  {allUserBots.length > 1 && (
+                    <div className="d-flex align-items-center gap-2 mt-2">
+                      <small className="text-muted">Switch Bot:</small>
+                      <Input type="select" value={botId}
+                        onChange={e => handleBotSwitch(e.target.value)}
+                        style={{ fontSize: 13, width: "auto", minWidth: 180 }}>
+                        {allUserBots.map(b => (
+                          <option key={b.bot_id} value={b.bot_id}>{b.bot_name} ({b.bot_id})</option>
+                        ))}
+                      </Input>
+                    </div>
+                  )}
                 </div>
                 <div className="d-flex gap-2 flex-wrap align-items-end">
                   <div>
@@ -219,9 +254,7 @@ const Leads = ({ setBreadcrumbItems }) => {
                     <Input type="select" value={statusFilter}
                       onChange={e => setStatusFilter(e.target.value)} style={{ width: 150 }}>
                       <option value="">All Statuses</option>
-                      {STATUS_OPTIONS.map(s => (
-                        <option key={s.value} value={s.value}>{s.label}</option>
-                      ))}
+                      {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                     </Input>
                   </div>
                   <div>
@@ -258,44 +291,23 @@ const Leads = ({ setBreadcrumbItems }) => {
 
               {/* ── Import Panel ── */}
               {showImport && (
-                <div style={{
-                  background: "#f8f9fa", border: "1px solid #e9ecef",
-                  borderRadius: 10, padding: 20, marginBottom: 20,
-                }}>
+                <div style={{ background: "#f8f9fa", border: "1px solid #e9ecef", borderRadius: 10, padding: 20, marginBottom: 20 }}>
                   <h6 className="mb-3"><i className="mdi mdi-upload me-2"></i>Import Leads from CSV</h6>
-
-                  <div style={{
-                    background: "#fff3cd", border: "1px solid #ffc107",
-                    borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13,
-                  }}>
+                  <div style={{ background: "#fff3cd", border: "1px solid #ffc107", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13 }}>
                     <i className="mdi mdi-information-outline me-2"></i>
-                    CSV first row must be column headers. Column names become lead field names automatically.
-                    Example: <strong>name, email, phone, city</strong>
+                    CSV first row must be column headers. Example columns: <strong>name, email, phone, city</strong>
                   </div>
-
                   <div className="d-flex align-items-center gap-3 flex-wrap">
-                    <input
-                      type="file"
-                      accept=".csv"
+                    <input type="file" accept=".csv"
                       onChange={e => { setImportFile(e.target.files[0]); setImportResult(null); }}
-                      style={{ fontSize: 13 }}
-                    />
-                    {importFile && (
-                      <span style={{ fontSize: 12, color: "#22c55e" }}>✓ {importFile.name}</span>
-                    )}
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={handleImport}
-                      disabled={!importFile || importing}
-                    >
+                      style={{ fontSize: 13 }} />
+                    {importFile && <span style={{ fontSize: 12, color: "#22c55e" }}>✓ {importFile.name}</span>}
+                    <button className="btn btn-primary btn-sm" onClick={handleImport} disabled={!importFile || importing}>
                       {importing
                         ? <><span className="spinner-border spinner-border-sm me-2" />Importing...</>
-                        : <><i className="mdi mdi-upload me-1"></i>Upload & Import</>
-                      }
+                        : <><i className="mdi mdi-upload me-1"></i>Upload & Import</>}
                     </button>
                   </div>
-
-                  {/* Import result */}
                   {importResult && (
                     <div style={{
                       marginTop: 12, padding: "10px 14px", borderRadius: 8, fontSize: 13,
@@ -305,37 +317,21 @@ const Leads = ({ setBreadcrumbItems }) => {
                       {importResult.success ? (
                         <>
                           <strong style={{ color: "#15803d" }}>✓ Import complete!</strong>
-                          <span className="ms-2">{importResult.imported} leads imported successfully.</span>
-                          {importResult.failed > 0 && (
-                            <span className="ms-2 text-danger">{importResult.failed} rows failed.</span>
-                          )}
-                          {importResult.errors?.length > 0 && (
-                            <div className="mt-2">
-                              {importResult.errors.map((e, i) => (
-                                <div key={i} style={{ color: "#dc2626", fontSize: 11 }}>{e}</div>
-                              ))}
-                            </div>
-                          )}
+                          <span className="ms-2">{importResult.imported} leads imported.</span>
+                          {importResult.failed > 0 && <span className="ms-2 text-danger">{importResult.failed} failed.</span>}
                         </>
                       ) : (
                         <span style={{ color: "#dc2626" }}>✗ {importResult.error}</span>
                       )}
                     </div>
                   )}
-
-                  {/* Import history */}
                   {importHistory.length > 0 && (
                     <div className="mt-3">
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "#64748b", marginBottom: 8 }}>
-                        Recent Imports
-                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#64748b", marginBottom: 8 }}>Recent Imports</div>
                       {importHistory.slice(0, 5).map(imp => (
-                        <div key={imp.id} style={{
-                          display: "flex", alignItems: "center", gap: 12,
-                          padding: "6px 0", borderBottom: "1px solid #f1f5f9", fontSize: 12,
-                        }}>
+                        <div key={imp.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 0", borderBottom: "1px solid #f1f5f9", fontSize: 12 }}>
                           <i className="mdi mdi-file-delimited-outline" style={{ color: "#64748b" }}></i>
-                          <span style={{ color: "#1e293b", fontWeight: 500 }}>{imp.file_name}</span>
+                          <span style={{ fontWeight: 500 }}>{imp.file_name}</span>
                           <span style={{ color: "#64748b" }}>{imp.imported_count}/{imp.total_rows} rows</span>
                           <span style={{
                             background: imp.status === "done" ? "#f0fdf4" : "#fef2f2",
@@ -365,23 +361,22 @@ const Leads = ({ setBreadcrumbItems }) => {
                         <th>Serial</th>
                         <th>Status</th>
                         {allKeys.map(k => (
-                          <th key={k} style={{ textTransform: "capitalize" }}>
-                            {k.replace(/_/g, " ")}
-                          </th>
+                          <th key={k} style={{ textTransform: "capitalize" }}>{k.replace(/_/g, " ")}</th>
                         ))}
                         <th>Date</th>
                         <th>Time</th>
                         <th>Webhook</th>
+                        <th>CRM</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filtered.length === 0 ? (
                         <tr>
-                          <td colSpan={allKeys.length + 6} className="text-center text-muted py-5">
+                          <td colSpan={allKeys.length + 7} className="text-center text-muted py-5">
                             <i className="mdi mdi-account-group-outline d-block mb-2" style={{ fontSize: 40 }}></i>
                             {search || dateFrom || dateTo || statusFilter
                               ? "No leads match your filters."
-                              : "No leads yet. Leads will appear here once users complete the chatbot flow."}
+                              : "No leads yet."}
                           </td>
                         </tr>
                       ) : (
@@ -394,28 +389,17 @@ const Leads = ({ setBreadcrumbItems }) => {
                               </Badge>
                             </td>
                             <td>
-                              <Input
-                                type="select"
-                                value={lead.status || "new"}
+                              {/* Inline status dropdown — change without leaving page */}
+                              <Input type="select" value={lead.status || "new"}
                                 disabled={updatingId === lead.id}
                                 onChange={e => handleStatusChange(lead.id, e.target.value)}
                                 style={{
-                                  fontSize: 11, padding: "2px 6px",
-                                  width: 135, height: 28, borderRadius: 6,
-                                  border: `1px solid`,
-                                  borderColor:
-                                    lead.status === "converted" ? "#22c55e" :
-                                    lead.status === "not_interested" ? "#ef4444" :
-                                    lead.status === "contacted" ? "#3b82f6" : "#94a3b8",
-                                  color:
-                                    lead.status === "converted" ? "#15803d" :
-                                    lead.status === "not_interested" ? "#b91c1c" :
-                                    lead.status === "contacted" ? "#1d4ed8" : "#475569",
-                                }}
-                              >
-                                {STATUS_OPTIONS.map(s => (
-                                  <option key={s.value} value={s.value}>{s.label}</option>
-                                ))}
+                                  fontSize: 11, padding: "2px 6px", width: 135, height: 28, borderRadius: 6,
+                                  border: "1px solid",
+                                  borderColor: lead.status === "converted" ? "#22c55e" : lead.status === "not_interested" ? "#ef4444" : lead.status === "contacted" ? "#3b82f6" : "#94a3b8",
+                                  color: lead.status === "converted" ? "#15803d" : lead.status === "not_interested" ? "#b91c1c" : lead.status === "contacted" ? "#1d4ed8" : "#475569",
+                                }}>
+                                {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                               </Input>
                             </td>
                             {allKeys.map(k => (
@@ -424,12 +408,30 @@ const Leads = ({ setBreadcrumbItems }) => {
                             <td style={{ fontSize: 12, color: "#6c757d" }}>{lead.lead_date}</td>
                             <td style={{ fontSize: 12, color: "#6c757d" }}>{lead.created_at}</td>
                             <td>
-                              <Badge
-                                color={lead.webhook_sent ? "success" : "warning"}
-                                style={{ fontSize: 10 }}
-                              >
+                              <Badge color={lead.webhook_sent ? "success" : "warning"} style={{ fontSize: 10 }}>
                                 {lead.webhook_sent ? "Sent" : "Pending"}
                               </Badge>
+                            </td>
+                            <td>
+                              {/* Phase 2: Push to CRM button
+                                  Uses bot's webhook_url as CRM endpoint.
+                                  Phase 3 will add CRMIntegration model with field mapping UI */}
+                              {pushResult[lead.id] === "success" ? (
+                                <span style={{ fontSize: 11, color: "#15803d" }}>✓ Pushed</span>
+                              ) : pushResult[lead.id] === "error" ? (
+                                <span style={{ fontSize: 11, color: "#dc2626" }}>✗ Failed</span>
+                              ) : (
+                                <button
+                                  className="btn btn-sm btn-outline-secondary"
+                                  style={{ fontSize: 11, padding: "2px 8px" }}
+                                  disabled={pushingId === lead.id}
+                                  onClick={() => handlePushToCRM(lead)}
+                                >
+                                  {pushingId === lead.id
+                                    ? <span className="spinner-border spinner-border-sm" />
+                                    : <><i className="mdi mdi-send me-1"></i>Push</>}
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))
@@ -438,7 +440,6 @@ const Leads = ({ setBreadcrumbItems }) => {
                   </table>
                 </div>
               )}
-
             </CardBody>
           </Card>
         </Col>
