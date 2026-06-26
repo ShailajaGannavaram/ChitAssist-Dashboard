@@ -181,3 +181,4 @@ export default connect(mapStatetoProps, {
   changeTopbarTheme,
   changeLayoutWidth,
 })(withRouter(Layout))
+

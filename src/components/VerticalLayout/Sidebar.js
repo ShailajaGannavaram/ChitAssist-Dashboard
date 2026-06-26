@@ -32,3 +32,4 @@ export default connect(
   mapStatetoProps,
   {}
 )(withRouter(withTranslation()(Sidebar)))
+

@@ -290,8 +290,8 @@ const CRMTab = ({ botId, form, set, handleSave, saving, dirty }) => {
           <div style={{ background: "#f8f9fa", borderRadius: 10, padding: 20 }}>
             <h6 className="mb-2">Field Mapping</h6>
             <p className="text-muted mb-3" style={{ fontSize: 13 }}>
-              Map ChitAssist field names to your CRM's field names.
-              Left side = ChitAssist field, Right side = CRM field name.
+              Map your bot's field names to your CRM's field names.
+              Left side = Bot field, Right side = CRM field name.
             </p>
 
             {/* Visual mapping helper */}
@@ -340,7 +340,7 @@ const BotConfig = ({ setBreadcrumbItems, botId: propBotId }) => {
   const [form, setForm] = useState(null);
   const [dirty, setDirty] = useState(false);
   const [embedCopied, setEmbedCopied] = useState("");
-  document.title = "Bot Configuration | ChitAssist Dashboard";
+  document.title = "Bot Configuration | ANTS Bot Dashboard";
 
   useEffect(() => {
     setBreadcrumbItems("Bot Configuration", [
@@ -668,3 +668,4 @@ const BotConfig = ({ setBreadcrumbItems, botId: propBotId }) => {
 };
 
 export default connect(null, { setBreadcrumbItems })(BotConfig);
+

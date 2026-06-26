@@ -20,7 +20,7 @@ const Conversations = ({ setBreadcrumbItems }) => {
   const [offcanvasOpen, setOffcanvasOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
 
-  document.title = "Conversations | ChitAssist Dashboard";
+  document.title = "Conversations | ANTS Bot Dashboard";
 
   useEffect(() => {
     setBreadcrumbItems("Conversations", [
@@ -210,3 +210,4 @@ const Conversations = ({ setBreadcrumbItems }) => {
 };
 
 export default connect(null, { setBreadcrumbItems })(Conversations);
+

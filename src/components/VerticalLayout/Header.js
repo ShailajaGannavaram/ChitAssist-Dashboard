@@ -35,7 +35,7 @@ const Header = props => {
               <i className="mdi mdi-menu"></i>
             </button>
             <div className="d-none d-sm-flex align-items-center ms-2">
-              <span style={{ color: "#008ed3", fontWeight: 600, fontSize: 15, letterSpacing: 0.5 }}>ChitAssist</span>
+              <span style={{ color: "#008ed3", fontWeight: 600, fontSize: 15, letterSpacing: 0.5 }}>ANTS Bots</span>
               <span style={{ color: "#445566", fontSize: 13, marginLeft: 6 }}>Dashboard</span>
             </div>
           </div>

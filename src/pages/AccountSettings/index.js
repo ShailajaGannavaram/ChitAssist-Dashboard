@@ -20,7 +20,7 @@ const AccountSettings = ({ setBreadcrumbItems }) => {
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
 
-  document.title = "Account Settings | ChitAssist Dashboard";
+  document.title = "Account Settings | ANTS Bot Dashboard";
 
   useEffect(() => {
     setBreadcrumbItems("Account Settings", [
@@ -191,3 +191,4 @@ const AccountSettings = ({ setBreadcrumbItems }) => {
 };
 
 export default connect(null, { setBreadcrumbItems })(AccountSettings);
+

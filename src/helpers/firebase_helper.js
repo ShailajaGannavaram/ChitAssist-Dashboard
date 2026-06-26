@@ -193,3 +193,4 @@ const getFirebaseBackend = () => {
 };
 
 export { initFirebaseBackend, getFirebaseBackend };
+

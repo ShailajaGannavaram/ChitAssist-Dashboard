@@ -26,7 +26,7 @@ const ActivityLog = ({ setBreadcrumbItems }) => {
   const [filterAction, setFilterAction] = useState("");
   const user = getAuthUser();
 
-  document.title = "Activity Log | ChitAssist Dashboard";
+  document.title = "Activity Log | ANTS Bot Dashboard";
 
   useEffect(() => {
     setBreadcrumbItems("Activity Log", [
@@ -166,3 +166,4 @@ const ActivityLog = ({ setBreadcrumbItems }) => {
 };
 
 export default connect(null, { setBreadcrumbItems })(ActivityLog);
+

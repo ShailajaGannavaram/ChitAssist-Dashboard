@@ -188,3 +188,4 @@ useEffect(() => {
 }
 
 export default Register
+

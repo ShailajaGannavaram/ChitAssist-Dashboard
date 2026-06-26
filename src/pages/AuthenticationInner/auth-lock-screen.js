@@ -64,3 +64,4 @@ const LockScreen = () => {
 }
 
 export default LockScreen
+

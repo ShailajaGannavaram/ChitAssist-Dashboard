@@ -31,7 +31,7 @@ const TicketDetail = ({ setBreadcrumbItems }) => {
   const [error, setError] = useState("");
   const [newStatus, setNewStatus] = useState("");
 
-  document.title = `Ticket #${ticketId} | ChitAssist Dashboard`;
+  document.title = `Ticket #${ticketId} | ANTS Bot Dashboard`;
 
   useEffect(() => {
     setBreadcrumbItems(`Ticket #${ticketId}`, [
@@ -324,3 +324,4 @@ const TicketDetail = ({ setBreadcrumbItems }) => {
 };
 
 export default connect(null, { setBreadcrumbItems })(TicketDetail);
+

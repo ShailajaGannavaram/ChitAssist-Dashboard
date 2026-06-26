@@ -45,3 +45,4 @@ function* accountSaga() {
 }
 
 export default accountSaga
+

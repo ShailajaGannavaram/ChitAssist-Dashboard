@@ -96,3 +96,4 @@ const Layout = (state = INIT_STATE, action) => {
 }
 
 export default Layout
+

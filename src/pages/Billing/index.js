@@ -18,7 +18,7 @@ const Billing = ({ setBreadcrumbItems }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  document.title = "Billing | ChitAssist Dashboard";
+  document.title = "Billing | ANTS Bot Dashboard";
 
   useEffect(() => {
     setBreadcrumbItems("Billing & Invoices", [
@@ -197,3 +197,4 @@ const Billing = ({ setBreadcrumbItems }) => {
 };
 
 export default connect(null, { setBreadcrumbItems })(Billing);
+

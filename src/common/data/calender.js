@@ -80,3 +80,4 @@ const calenderDefaultCategories = [
 ]
 
 export { calenderDefaultCategories, events }
+

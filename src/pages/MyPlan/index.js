@@ -59,7 +59,7 @@ const MyPlan = ({ setBreadcrumbItems }) => {
 
   const botsUsed = user.all_user_bots?.length || 1;
 
-  document.title = "My Plan | ChitAssist Dashboard";
+  document.title = "My Plan | ANTS Bot Dashboard";
 
   useEffect(() => {
     setBreadcrumbItems("My Plan", [
@@ -371,3 +371,4 @@ const MyPlan = ({ setBreadcrumbItems }) => {
 };
 
 export default connect(null, { setBreadcrumbItems })(MyPlan);
+

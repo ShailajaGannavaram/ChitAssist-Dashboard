@@ -68,3 +68,4 @@ export const toggleLeftmenu = isopen => ({
   type: TOGGLE_LEFTMENU,
   payload: isopen,
 })
+

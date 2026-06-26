@@ -190,3 +190,4 @@ export default connect(mapStatetoProps, {
   showRightSidebarAction,
   toggleLeftmenu,
 })(withTranslation()(Header))
+

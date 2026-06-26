@@ -186,3 +186,4 @@ export default connect(mapStatetoProps, {
   changeLayoutWidth,
   changeMode,
 })(withRouter(Layout))
+

@@ -26,3 +26,4 @@ export const resetProfileFlag = error => {
     type: RESET_PROFILE_FLAG,
   }
 }
+

@@ -47,7 +47,7 @@ const Leads = ({ setBreadcrumbItems }) => {
   const [importResult, setImportResult] = useState(null);
   const [importHistory, setImportHistory] = useState([]);
 
-  document.title = "Leads | ChitAssist Dashboard";
+  document.title = "Leads | ANTS Bot Dashboard";
 
   useEffect(() => {
     setBreadcrumbItems("Leads", [
@@ -449,3 +449,4 @@ const Leads = ({ setBreadcrumbItems }) => {
 };
 
 export default connect(null, { setBreadcrumbItems })(Leads);
+

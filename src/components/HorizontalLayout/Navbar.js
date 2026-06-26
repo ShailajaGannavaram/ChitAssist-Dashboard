@@ -449,3 +449,4 @@ const mapStatetoProps = state => {
 export default withRouter(
   connect(mapStatetoProps, {})(withTranslation()(Navbar))
 )
+

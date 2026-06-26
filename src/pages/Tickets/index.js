@@ -53,7 +53,7 @@ const Tickets = ({ setBreadcrumbItems }) => {
     bot_id: user.bot_id || "",
   });
 
-  document.title = "Support Tickets | ChitAssist Dashboard";
+  document.title = "Support Tickets | ANTS Bot Dashboard";
 
   useEffect(() => {
     setBreadcrumbItems("Support Tickets", [
@@ -356,3 +356,4 @@ const Tickets = ({ setBreadcrumbItems }) => {
 
 
 export default connect(null, { setBreadcrumbItems })(Tickets);
+

@@ -44,3 +44,4 @@ const account = (state = initialState, action) => {
 }
 
 export default account
+

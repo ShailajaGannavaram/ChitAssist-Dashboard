@@ -37,3 +37,4 @@ const Pages404 = () => {
 }
 
 export default Pages404
+
